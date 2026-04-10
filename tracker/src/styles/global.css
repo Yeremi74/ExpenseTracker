@@ -39,8 +39,18 @@
   }
 }
 
+@media (max-width: 480px) {
+  :root {
+    font-size: 15px;
+  }
+}
+
 * {
   box-sizing: border-box;
+}
+
+html {
+  overflow-x: clip;
 }
 
 body {

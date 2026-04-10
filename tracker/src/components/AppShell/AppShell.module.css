@@ -1,5 +1,6 @@
 .root {
-  max-width: 90vw;
+  width: 100%;
+  max-width: 1126px;
   margin: 0 auto;
   min-height: 100svh;
   border-inline: 1px solid var(--border);
@@ -10,26 +11,100 @@
   background: var(--surface);
   position: sticky;
   top: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 28px 0;
+  z-index: 30;
+  padding: 10px 0 0;
+  padding-inline: max(14px, env(safe-area-inset-left, 0px))
+    max(14px, env(safe-area-inset-right, 0px));
   max-width: 1126px;
   margin: 0 auto;
   width: 100%;
 }
 
-.nav {
+.navBarRow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+
+.menuToggle {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--text-h);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.menuToggle:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.menuToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.menuIcon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 20px;
+  height: 16px;
+}
+
+.menuIconBar {
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+  transform-origin: center;
+}
+
+.menuIconOpen .menuIconBar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.menuIconOpen .menuIconBar:nth-child(2) {
+  opacity: 0;
+}
+
+.menuIconOpen .menuIconBar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.navDesktop {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 4px 0 14px;
+  padding: 4px 0;
   justify-content: center;
+}
+
+.navMobile {
+  display: none;
+}
+
+.menuBackdrop {
+  display: none;
 }
 
 .navLink {
@@ -61,13 +136,13 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  padding-bottom: 10px;
+  margin-left: auto;
 }
 
 .userEmail {
   font-size: 0.85rem;
   color: var(--text);
-  max-width: min(220px, 40vw);
+  max-width: min(220px, min(40vw, 100%));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -89,8 +164,99 @@
   color: var(--accent);
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 769px) {
   .navWrap {
-    padding-inline: 16px;
+    padding-inline: max(28px, env(safe-area-inset-left, 0px))
+      max(28px, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .navWrap {
+    padding-inline: max(16px, env(safe-area-inset-left, 0px))
+      max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (max-width: 768px) {
+  .navWrap {
+    padding-inline: max(14px, env(safe-area-inset-left, 0px))
+      max(14px, env(safe-area-inset-right, 0px));
+  }
+
+  .menuToggle {
+    display: flex;
+  }
+
+  .navDesktop {
+    display: none;
+  }
+
+  .navMobile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 88vw);
+    z-index: 29;
+    margin: 0;
+    padding: calc(70px + env(safe-area-inset-top, 0px)) 16px 24px;
+    padding-inline-end: max(16px, env(safe-area-inset-right, 0px));
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
+    transform: translateX(-100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 0.22s ease,
+      visibility 0.22s;
+  }
+
+  .navMobileOpen {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .navMobile .navLink {
+    padding: 12px 14px;
+    font-size: 1rem;
+  }
+
+  .menuBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 28;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    animation: backdropIn 0.2s ease;
+  }
+
+  .userEmail {
+    max-width: min(200px, 42vw);
+  }
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .userEmail {
+    max-width: min(140px, 38vw);
   }
 }

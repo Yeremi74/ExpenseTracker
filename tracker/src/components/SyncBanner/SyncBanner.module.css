@@ -1,9 +1,13 @@
 .base {
   margin: 0 0 16px;
-  padding: 10px 14px;
+  padding: 10px max(14px, env(safe-area-inset-left, 0px))
+    10px max(14px, env(safe-area-inset-right, 0px));
   border-radius: 8px;
   font-size: 0.92rem;
   text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
 }
 
 .info {

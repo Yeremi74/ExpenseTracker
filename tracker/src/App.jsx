@@ -8,7 +8,9 @@ import { useAuth } from './context/AuthContext.jsx'
 import AuthSessionLoading from './components/AuthSessionLoading/AuthSessionLoading.jsx'
 import AppShell from './components/AppShell/AppShell.jsx'
 import Budget503020Page from './pages/Budget503020/Budget503020.jsx'
-import MonthlyPage from './pages/Monthly/Monthly.jsx'
+import MonthlyDebtsPage from './pages/Monthly/MonthlyDebts.jsx'
+import MonthlyExpensesPage from './pages/Monthly/MonthlyExpenses.jsx'
+import MonthlyLayout from './pages/Monthly/MonthlyLayout.jsx'
 import WishlistPage from './pages/Wishlist/Wishlist.jsx'
 import LoginPage from './pages/Login/Login.jsx'
 import RegisterPage from './pages/Register/Register.jsx'
@@ -42,7 +44,11 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route index element={<Budget503020Page />} />
-          <Route path="mensual" element={<MonthlyPage />} />
+          <Route element={<MonthlyLayout />}>
+            <Route path="gastos" element={<MonthlyExpensesPage />} />
+            <Route path="deudas" element={<MonthlyDebtsPage />} />
+          </Route>
+          <Route path="mensual" element={<Navigate to="/gastos" replace />} />
           <Route path="quiero-comprar" element={<WishlistPage />} />
         </Route>
       </Route>

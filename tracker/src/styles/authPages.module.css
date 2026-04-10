@@ -3,8 +3,12 @@
 }
 
 .page {
+  width: 100%;
   max-width: 420px;
   margin: 0 auto;
+  padding-inline: max(0px, env(safe-area-inset-left, 0px))
+    max(0px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
 }
 
 .title {

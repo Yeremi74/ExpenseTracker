@@ -1,7 +1,7 @@
 .wishlistTwoCols {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: clamp(16px, 3vw, 24px);
   align-items: start;
 }
 
@@ -15,7 +15,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 18px 18px 22px;
+  padding: 18px clamp(14px, 3vw, 18px) 22px;
   box-shadow: var(--shadow);
   text-align: left;
 }
@@ -68,6 +68,17 @@
 .btnAiSort:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+@media (max-width: 560px) {
+  .wishAiRow {
+    flex-direction: column;
+  }
+
+  .btnAiSort {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .wishAiError {
