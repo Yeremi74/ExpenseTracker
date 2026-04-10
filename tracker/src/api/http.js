@@ -1,4 +1,9 @@
 import { getToken, clearToken } from './authStorage.js'
+import { setServerWaking } from './serverWakeStore.js'
+
+const WARM_CACHE_MS = 60_000
+let lastWakeOkAt = 0
+let wakePromise = null
 
 function resolveApiUrl(input) {
   if (typeof input !== 'string') return input
@@ -10,7 +15,59 @@ function resolveApiUrl(input) {
   return `${base}${path}`
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function tryHealthOnce(healthUrl) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 45000)
+  try {
+    const res = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+    clearTimeout(timeout)
+    return res.ok
+  } catch {
+    clearTimeout(timeout)
+    return false
+  }
+}
+
+async function ensureServerWake() {
+  if (Date.now() - lastWakeOkAt < WARM_CACHE_MS) return
+  if (wakePromise) return wakePromise
+
+  const healthUrl = resolveApiUrl('/api/health')
+
+  wakePromise = (async () => {
+    let firstFailure = true
+    try {
+      while (true) {
+        if (await tryHealthOnce(healthUrl)) {
+          lastWakeOkAt = Date.now()
+          setServerWaking(false)
+          return
+        }
+        if (firstFailure) {
+          setServerWaking(true)
+          firstFailure = false
+        }
+        await sleep(5000)
+      }
+    } finally {
+      wakePromise = null
+    }
+  })()
+
+  return wakePromise
+}
+
 export async function apiFetch(input, init = {}) {
+  await ensureServerWake()
+
   const token = getToken()
   const headers = new Headers(init.headers || {})
   if (token) headers.set('Authorization', `Bearer ${token}`)
