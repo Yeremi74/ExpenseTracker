@@ -1,7 +1,9 @@
 import { getToken, clearToken } from './authStorage.js'
 import { setServerWaking } from './serverWakeStore.js'
 
-const WARM_CACHE_MS = 60_000
+const WARM_CACHE_MS = 10_000
+const WAKE_RETRY_INTERVAL_MS = 10_000
+
 let lastWakeOkAt = 0
 let wakePromise = null
 
@@ -17,6 +19,10 @@ function resolveApiUrl(input) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export function invalidateServerWakeCache() {
+  lastWakeOkAt = 0
 }
 
 async function tryHealthOnce(healthUrl) {
@@ -36,7 +42,7 @@ async function tryHealthOnce(healthUrl) {
   }
 }
 
-async function ensureServerWake() {
+export async function ensureServerWake() {
   if (Date.now() - lastWakeOkAt < WARM_CACHE_MS) return
   if (wakePromise) return wakePromise
 
@@ -55,7 +61,7 @@ async function ensureServerWake() {
           setServerWaking(true)
           firstFailure = false
         }
-        await sleep(5000)
+        await sleep(WAKE_RETRY_INTERVAL_MS)
       }
     } finally {
       wakePromise = null
@@ -80,7 +86,17 @@ export async function apiFetch(input, init = {}) {
   }
 
   const url = resolveApiUrl(input)
-  const res = await fetch(url, { ...init, headers })
+  let res
+  try {
+    res = await fetch(url, { ...init, headers })
+  } catch {
+    invalidateServerWakeCache()
+    throw new Error('Sin conexión con el servidor')
+  }
+
+  if ([502, 503, 504].includes(res.status)) {
+    invalidateServerWakeCache()
+  }
 
   if (res.status === 401) {
     clearToken()

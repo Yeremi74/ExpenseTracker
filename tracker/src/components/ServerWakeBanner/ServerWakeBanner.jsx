@@ -18,8 +18,8 @@ export default function ServerWakeBanner() {
     <div className={styles.banner} role="status" aria-live="polite">
       <p className={styles.text}>
         El servidor se está iniciando (plan gratuito con inactividad).
-        Reintentando cada 5 segundos… Tu petición seguirá sola cuando el
-        backend responda; no hace falta repetirla.
+        Reintentando cada 10 segundos… La petición en curso continuará sola
+        cuando el backend responda; no hace falta repetirla.
       </p>
     </div>
   )

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { ensureServerWake } from '../../api/http.js'
 import { getSetting, putSetting } from '../../api/settingsClient.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
 import SettingsPageLayout from '../../components/SettingsPageLayout/SettingsPageLayout.jsx'
@@ -193,6 +194,16 @@ export default function Budget503020Page() {
     }))
     setSectionDrafts((sd) => ({ ...sd, [key]: null }))
     setSectionEdit((prev) => ({ ...prev, [key]: false }))
+  }
+
+  async function handleCommitSection(key) {
+    setSectionCommitting(key)
+    try {
+      await ensureServerWake()
+      commitSection(key)
+    } finally {
+      setSectionCommitting(null)
+    }
   }
 
   useEffect(() => {
@@ -407,9 +418,12 @@ export default function Budget503020Page() {
                     <button
                       type="button"
                       className={s.btnSectionDone}
-                      onClick={() => commitSection(g.key)}
+                      disabled={sectionCommitting === g.key}
+                      onClick={() => void handleCommitSection(g.key)}
                     >
-                      Listo
+                      {sectionCommitting === g.key
+                        ? 'Comprobando servidor…'
+                        : 'Listo'}
                     </button>
                   </div>
                   <div className={s.budgetCardHead}>
