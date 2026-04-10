@@ -1,0 +1,233 @@
+.wishlistTwoCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .wishlistTwoCols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wishBlock {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 18px 22px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.wishBlockHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.wishBlockTitle {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.wishCounter {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.wishAiRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btnAiSort {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
+}
+
+.btnAiSort:hover:not(:disabled) {
+  background: rgba(192, 132, 252, 0.22);
+}
+
+.btnAiSort:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.wishAiError {
+  font-size: 0.88rem;
+  color: #fca5a5;
+  margin: 0 0 8px;
+  line-height: 140%;
+}
+
+.wishBlockHint {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin: 0 0 16px;
+  line-height: 145%;
+}
+
+.wishList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 2.5rem;
+}
+
+.wishEmpty {
+  font-size: 0.92rem;
+  color: var(--text);
+  padding: 12px 0;
+  margin: 0;
+}
+
+.wishRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: var(--surface-elevated);
+  touch-action: none;
+}
+
+.wishRow:last-of-type {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+
+.wishRowBought .wishRowText {
+  text-decoration: line-through;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  -webkit-text-decoration-color: var(--accent);
+  color: var(--text);
+  opacity: 0.65;
+}
+
+.wishRowHandle {
+  cursor: grab;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 6px 4px;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wishRowHandle:hover {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.wishRowHandle:active {
+  cursor: grabbing;
+}
+
+.wishRowGrip {
+  font-size: 0.85rem;
+  letter-spacing: -0.12em;
+  user-select: none;
+}
+
+.wishRowLabelWrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.wishRowCheckbox {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.wishRowText {
+  color: var(--text-h);
+  font-size: 0.95rem;
+  line-height: 145%;
+  word-break: break-word;
+}
+
+.wishRowRemove {
+  align-self: start;
+}
+
+.wishFooter {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border);
+}
+
+.wishAdd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.wishAddInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.wishImport {
+  margin-top: 12px;
+}
+
+.btnImportTxt {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btnImportTxt:hover {
+  background: var(--accent-bg);
+}
+
+.btnImportTxt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.wishImportHint {
+  font-size: 0.78rem;
+  color: var(--text);
+  margin: 8px 0 0;
+  line-height: 140%;
+}

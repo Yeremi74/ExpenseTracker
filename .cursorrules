@@ -1,0 +1,38 @@
+You must follow these rules in every response:
+
+GENERAL:
+- Do not add comments in the code.
+- Write clean, readable, and maintainable code.
+- Avoid overengineering, but design with future scalability in mind.
+
+NAMING:
+- All variables and functions must be in English.
+- Use camelCase for variables and functions.
+- Use PascalCase for React components.
+
+REACT:
+- Follow SOLID principles when it makes sense, but do not force them.
+- Do not over-abstract if the complexity is not yet required.
+- Always consider future scalability of components.
+
+- Components should be designed with potential future variants in mind.
+  Example: If creating a button with one variant, structure it in a way that allows easy extension for multiple variants later.
+
+- Keep components modular and reusable.
+- Separate logic from presentation when appropriate.
+
+BACKEND:
+- Design endpoints to be flexible and reusable.
+- Avoid creating overly specific endpoints when a more generic solution can cover multiple use cases.
+
+- Example:
+  Instead of creating:
+    GET /users?name=John
+
+  Prefer designing something like:
+    GET /users?filter[field]=name&filter[value]=John
+
+  Or another flexible filtering approach.
+
+- Optimize endpoints for scalability and maintainability.
+- Avoid duplication in endpoint logic.

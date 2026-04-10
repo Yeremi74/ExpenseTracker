@@ -1,0 +1,63 @@
+.input {
+  composes: input from './forms.module.css';
+}
+
+.page {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.title {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.lead {
+  margin: 0 0 24px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text);
+  line-height: 145%;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.88rem;
+  color: var(--text-h);
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  color: #fecaca;
+  font-size: 0.92rem;
+}
+
+.submit {
+  composes: btnSubmit from './forms.module.css';
+  margin-top: 4px;
+}
+
+.footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.footer a {
+  color: var(--accent);
+}

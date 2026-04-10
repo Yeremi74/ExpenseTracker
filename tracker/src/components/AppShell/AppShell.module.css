@@ -1,0 +1,96 @@
+.root {
+  max-width: 90vw;
+  margin: 0 auto;
+  min-height: 100svh;
+  border-inline: 1px solid var(--border);
+}
+
+.navWrap {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 28px 0;
+  max-width: 1126px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.nav {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 14px;
+  justify-content: center;
+}
+
+.navLink {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.navLink:hover {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.navLinkActive {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.userBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-bottom: 10px;
+}
+
+.userEmail {
+  font-size: 0.85rem;
+  color: var(--text);
+  max-width: min(220px, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btnLogout {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.btnLogout:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+@media (max-width: 1024px) {
+  .navWrap {
+    padding-inline: 16px;
+  }
+}

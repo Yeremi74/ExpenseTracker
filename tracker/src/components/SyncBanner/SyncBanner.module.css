@@ -1,0 +1,21 @@
+.base {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.info {
+  composes: base;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--text-h);
+}
+
+.warn {
+  composes: base;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fcd34d;
+}
