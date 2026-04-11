@@ -56,10 +56,13 @@ export default function LoginPage() {
         <button type="submit" className={authStyles.submit} disabled={busy}>
           {busy ? 'Entrando…' : 'Entrar'}
         </button>
+        <p className={authStyles.forgotLink}>
+          <Link to="/password-reset">¿Olvidaste tu contraseña?</Link>
+        </p>
       </form>
 
       <AuthFooter>
-        ¿No tienes cuenta? <Link to="/registro">Crear cuenta</Link>
+        ¿No tienes cuenta? <Link to="/register">Crear cuenta</Link>
       </AuthFooter>
     </AuthPageLayout>
   )

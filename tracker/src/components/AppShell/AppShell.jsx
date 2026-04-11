@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { SUCCESS_NOTIFY_EVENT } from '../../utils/successNotify.js'
 import styles from './AppShell.module.css'
 
 function navLinkClassName(isActive, stylesObj) {
@@ -12,11 +13,44 @@ export default function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [mobileNavPanel, setMobileNavPanel] = useState('main')
+  const [successToast, setSuccessToast] = useState(null)
   const mobileNavId = useId()
+  const settingsMenuId = useId()
+  const settingsWrapRef = useRef(null)
 
   useEffect(() => {
     setMenuOpen(false)
+    setSettingsOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    if (!menuOpen) setMobileNavPanel('main')
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!settingsOpen) return undefined
+    function onPointerDown(e) {
+      if (
+        settingsWrapRef.current &&
+        !settingsWrapRef.current.contains(e.target)
+      ) {
+        setSettingsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [settingsOpen])
+
+  useEffect(() => {
+    if (!settingsOpen) return undefined
+    function onKeyDown(e) {
+      if (e.key === 'Escape') setSettingsOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [settingsOpen])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 769px)')
@@ -25,6 +59,21 @@ export default function AppShell() {
     }
     mq.addEventListener('change', closeIfDesktop)
     return () => mq.removeEventListener('change', closeIfDesktop)
+  }, [])
+
+  useEffect(() => {
+    let hideTimer
+    function onSuccessNotify(e) {
+      const msg = e.detail?.message || 'Se ha guardado correctamente.'
+      clearTimeout(hideTimer)
+      setSuccessToast(msg)
+      hideTimer = setTimeout(() => setSuccessToast(null), 2800)
+    }
+    window.addEventListener(SUCCESS_NOTIFY_EVENT, onSuccessNotify)
+    return () => {
+      clearTimeout(hideTimer)
+      window.removeEventListener(SUCCESS_NOTIFY_EVENT, onSuccessNotify)
+    }
   }, [])
 
   useEffect(() => {
@@ -78,13 +127,13 @@ export default function AppShell() {
               Presupuesto 50/30/20
             </NavLink>
             <NavLink
-              to="/gastos"
+              to="/expenses"
               className={({ isActive }) => navLinkClassName(isActive, styles)}
             >
               Gastos
             </NavLink>
             <NavLink
-              to="/deudas"
+              to="/debts"
               className={({ isActive }) => navLinkClassName(isActive, styles)}
             >
               Deudas
@@ -95,13 +144,46 @@ export default function AppShell() {
             <span className={styles.userEmail} title={user.email}>
               {user.email}
             </span>
-            <button
-              type="button"
-              className={styles.btnLogout}
-              onClick={handleLogout}
-            >
-              Salir
-            </button>
+            <div className={styles.settingsWrap} ref={settingsWrapRef}>
+              <button
+                type="button"
+                className={styles.btnSettings}
+                aria-expanded={settingsOpen}
+                aria-haspopup="menu"
+                aria-controls={settingsMenuId}
+                onClick={() => setSettingsOpen((o) => !o)}
+              >
+                Ajustes
+              </button>
+              {settingsOpen ? (
+                <div
+                  id={settingsMenuId}
+                  className={styles.settingsPopover}
+                  role="menu"
+                  aria-label="Cuenta y sesión"
+                >
+                  <NavLink
+                    to="/profile"
+                    role="menuitem"
+                    className={styles.settingsPopoverItem}
+                    onClick={() => setSettingsOpen(false)}
+                  >
+                    Perfil
+                  </NavLink>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`${styles.settingsPopoverItem} ${styles.settingsPopoverDanger}`}
+                    onClick={() => {
+                      setSettingsOpen(false)
+                      handleLogout()
+                    }}
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
@@ -120,31 +202,85 @@ export default function AppShell() {
         aria-label="Secciones"
         aria-hidden={!menuOpen}
       >
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => navLinkClassName(isActive, styles)}
-          onClick={() => setMenuOpen(false)}
-        >
-          Presupuesto 50/30/20
-        </NavLink>
-        <NavLink
-          to="/gastos"
-          className={({ isActive }) => navLinkClassName(isActive, styles)}
-          onClick={() => setMenuOpen(false)}
-        >
-          Gastos
-        </NavLink>
-        <NavLink
-          to="/deudas"
-          className={({ isActive }) => navLinkClassName(isActive, styles)}
-          onClick={() => setMenuOpen(false)}
-        >
-          Deudas
-        </NavLink>
+        <div className={styles.navMobileLinks}>
+          {mobileNavPanel === 'main' ? (
+            <>
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) => navLinkClassName(isActive, styles)}
+                onClick={() => setMenuOpen(false)}
+              >
+                Presupuesto 50/30/20
+              </NavLink>
+              <NavLink
+                to="/expenses"
+                className={({ isActive }) => navLinkClassName(isActive, styles)}
+                onClick={() => setMenuOpen(false)}
+              >
+                Gastos
+              </NavLink>
+              <NavLink
+                to="/debts"
+                className={({ isActive }) => navLinkClassName(isActive, styles)}
+                onClick={() => setMenuOpen(false)}
+              >
+                Deudas
+              </NavLink>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.navMobileBack}
+                onClick={() => setMobileNavPanel('main')}
+              >
+                ← Volver
+              </button>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) => navLinkClassName(isActive, styles)}
+                onClick={() => setMenuOpen(false)}
+              >
+                Perfil
+              </NavLink>
+              <button
+                type="button"
+                className={styles.btnLogoutMobile}
+                onClick={handleLogout}
+              >
+                Cerrar sesión
+              </button>
+            </>
+          )}
+        </div>
+        <div className={styles.navMobileFooter}>
+          <span className={styles.navMobileUserEmail} title={user.email}>
+            {user.email}
+          </span>
+          {mobileNavPanel === 'main' ? (
+            <button
+              type="button"
+              className={styles.btnMobileSettings}
+              onClick={() => setMobileNavPanel('settings')}
+            >
+              Ajustes
+            </button>
+          ) : null}
+        </div>
       </nav>
 
       <Outlet />
+
+      {successToast ? (
+        <div
+          className={styles.successToast}
+          role="status"
+          aria-live="polite"
+        >
+          {successToast}
+        </div>
+      ) : null}
     </div>
   )
 }

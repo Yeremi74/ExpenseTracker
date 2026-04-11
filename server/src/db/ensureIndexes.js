@@ -6,6 +6,12 @@ async function ensureIndexes() {
   await db
     .collection("user_settings")
     .createIndex({ userId: 1, key: 1 }, { unique: true });
+  await db
+    .collection("password_reset_otps")
+    .createIndex({ email: 1 }, { unique: true });
+  await db
+    .collection("password_reset_otps")
+    .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }
 
 module.exports = { ensureIndexes };

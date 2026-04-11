@@ -7,12 +7,19 @@ import {
 } from 'react'
 import { ensureServerWake } from '../../api/http.js'
 import { getSetting, putSetting } from '../../api/settingsClient.js'
+import { notifySuccess } from '../../utils/successNotify.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
 import SettingsPageLayout from '../../components/SettingsPageLayout/SettingsPageLayout.jsx'
 import f from '../../styles/forms.module.css'
 import s from './Budget503020.module.css'
 
 const LEGACY_STORAGE_KEY = 'tracker-503020-budget'
+
+const SECTION_SAVE_LABEL = {
+  needs: 'Necesidades',
+  wants: 'Deseos',
+  savings: 'Ahorro y deuda',
+}
 
 const GROUP_DEF = [
   {
@@ -160,6 +167,7 @@ export default function Budget503020Page() {
   const [persistOk, setPersistOk] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [syncError, setSyncError] = useState('')
+  const [sectionCommitting, setSectionCommitting] = useState(null)
 
   const anySectionEditing = useMemo(
     () => GROUP_DEF.some((g) => sectionEdit[g.key]),
@@ -185,22 +193,26 @@ export default function Budget503020Page() {
     setSectionEdit((prev) => ({ ...prev, [key]: true }))
   }
 
-  function commitSection(key) {
+  async function handleCommitSection(key) {
     const rows = sectionDraftsRef.current[key]
     if (!rows) return
-    setBudget((b) => ({
-      ...b,
+    const nextBudget = {
+      ...budget,
       [key]: rows.map((r) => ({ ...r })),
-    }))
-    setSectionDrafts((sd) => ({ ...sd, [key]: null }))
-    setSectionEdit((prev) => ({ ...prev, [key]: false }))
-  }
-
-  async function handleCommitSection(key) {
+    }
     setSectionCommitting(key)
     try {
       await ensureServerWake()
-      commitSection(key)
+      await putSetting('budget', nextBudget)
+      setBudget(nextBudget)
+      setSectionDrafts((sd) => ({ ...sd, [key]: null }))
+      setSectionEdit((prev) => ({ ...prev, [key]: false }))
+      setSyncError('')
+      notifySuccess(
+        `Se ha guardado la sección de ${SECTION_SAVE_LABEL[key] ?? 'presupuesto'}.`
+      )
+    } catch (e) {
+      window.alert(e.message || 'No se pudo guardar el presupuesto en el servidor.')
     } finally {
       setSectionCommitting(null)
     }
@@ -422,7 +434,7 @@ export default function Budget503020Page() {
                       onClick={() => void handleCommitSection(g.key)}
                     >
                       {sectionCommitting === g.key
-                        ? 'Comprobando servidor…'
+                        ? 'Guardando…'
                         : 'Listo'}
                     </button>
                   </div>

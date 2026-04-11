@@ -16,10 +16,14 @@ export default function MonthlyExpensesPage() {
     ready,
     loadError,
     syncError,
+    saveBusy,
+    pendingRemove,
+    ratesSyncing,
     filteredExpenses,
     totalsExp,
     addItem,
     removeItem,
+    fxRatesPanelRef,
   } = useMonthlyDataContext()
 
   const errBanner = loadError || syncError
@@ -30,7 +34,6 @@ export default function MonthlyExpensesPage() {
       ready={ready}
       errorMessage={errBanner}
     >
-      <FxRatesPanel rates={rates} setRates={setRates} />
       <MonthFilterRow
         monthFilter={monthFilter}
         setMonthFilter={setMonthFilter}
@@ -49,7 +52,8 @@ export default function MonthlyExpensesPage() {
         <TransactionTable
           variant="expense"
           rows={filteredExpenses}
-          onRemove={(id) => removeItem('expense', id)}
+          pendingRemove={pendingRemove}
+          onRemove={(id) => void removeItem('expense', id)}
           totals={totalsExp}
         />
         <TransactionForm
@@ -57,7 +61,17 @@ export default function MonthlyExpensesPage() {
           title="Añadir gasto"
           draft={draftExpense}
           setDraft={setDraftExpense}
-          onSubmit={() => addItem('expense', draftExpense, setDraftExpense)}
+          submitBusy={saveBusy}
+          onSubmit={() => void addItem('expense', draftExpense, setDraftExpense)}
+          fxPanel={
+            <FxRatesPanel
+              ref={fxRatesPanelRef}
+              embedded
+              rates={rates}
+              setRates={setRates}
+              ratesSyncing={ratesSyncing}
+            />
+          }
         />
       </section>
     </SettingsPageLayout>

@@ -16,12 +16,16 @@ export default function MonthlyDebtsPage() {
     ready,
     loadError,
     syncError,
+    saveBusy,
+    pendingRemove,
+    ratesSyncing,
     filteredDebts,
     totalsDebt,
     totalsDebtPay,
     totalsDebtReceive,
     addItem,
     removeItem,
+    fxRatesPanelRef,
   } = useMonthlyDataContext()
 
   const errBanner = loadError || syncError
@@ -32,7 +36,6 @@ export default function MonthlyDebtsPage() {
       ready={ready}
       errorMessage={errBanner}
     >
-      <FxRatesPanel rates={rates} setRates={setRates} />
       <MonthFilterRow
         monthFilter={monthFilter}
         setMonthFilter={setMonthFilter}
@@ -51,7 +54,8 @@ export default function MonthlyDebtsPage() {
         <TransactionTable
           variant="debt"
           rows={filteredDebts}
-          onRemove={(id) => removeItem('debt', id)}
+          pendingRemove={pendingRemove}
+          onRemove={(id) => void removeItem('debt', id)}
           totals={totalsDebt}
           totalsPay={totalsDebtPay}
           totalsReceive={totalsDebtReceive}
@@ -61,7 +65,17 @@ export default function MonthlyDebtsPage() {
           title="Añadir deuda"
           draft={draftDebt}
           setDraft={setDraftDebt}
-          onSubmit={() => addItem('debt', draftDebt, setDraftDebt)}
+          submitBusy={saveBusy}
+          onSubmit={() => void addItem('debt', draftDebt, setDraftDebt)}
+          fxPanel={
+            <FxRatesPanel
+              ref={fxRatesPanelRef}
+              embedded
+              rates={rates}
+              setRates={setRates}
+              ratesSyncing={ratesSyncing}
+            />
+          }
         />
       </section>
     </SettingsPageLayout>

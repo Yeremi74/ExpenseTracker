@@ -1,13 +1,29 @@
+import { forwardRef } from 'react'
 import f from '../../styles/forms.module.css'
 import s from './Monthly.module.css'
 
-export function FxRatesPanel({ rates, setRates }) {
+export const FxRatesPanel = forwardRef(function FxRatesPanel(
+  { rates, setRates, ratesSyncing = false, embedded = false, className = '' },
+  ref
+) {
+  const Heading = embedded ? 'h3' : 'h2'
   return (
-    <section className={s.fxPanel} aria-labelledby="fx-heading">
-      <h2 id="fx-heading" className={s.fxPanelTitle}>
-        Tasas (solo nuevos registros)
-      </h2>
-      <p className={s.fxPanelHint}>No modifican filas ya guardadas.</p>
+    <section
+      ref={ref}
+      className={`${s.fxPanel}${embedded ? ` ${s.fxPanelInForm}` : ''}${className ? ` ${className}` : ''}`}
+      aria-labelledby="fx-heading"
+    >
+      <Heading id="fx-heading" className={s.fxPanelTitle}>
+        Tasas 
+      </Heading>
+      <p className={s.fxPanelHint}>
+        {ratesSyncing ? (
+          <span className={s.fxPanelSyncing} role="status">
+            {' '}
+            Guardando tasas…
+          </span>
+        ) : null}
+      </p>
       <div className={s.fxPanelGrid}>
         <label className={s.fxField}>
           <span className={s.fxFieldLabel}>Bs por 1 USDT</span>
@@ -42,7 +58,7 @@ export function FxRatesPanel({ rates, setRates }) {
       </div>
     </section>
   )
-}
+})
 
 export function MonthFilterRow({ monthFilter, setMonthFilter }) {
   return (

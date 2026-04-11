@@ -20,6 +20,44 @@ export async function loginRequest(email, password) {
   return postAuthJson('/api/auth/login', { email, password })
 }
 
+export async function requestPasswordReset(email) {
+  const res = await apiFetch('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+  const payload = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(payload.error || `Error ${res.status}`)
+  return payload
+}
+
+export async function verifyPasswordResetCode(email, code) {
+  const res = await apiFetch('/api/auth/password-reset/verify-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  })
+  const payload = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(payload.error || `Error ${res.status}`)
+  return payload
+}
+
+export async function confirmPasswordReset(email, code, newPassword) {
+  return postAuthJson('/api/auth/password-reset/confirm', {
+    email,
+    code,
+    newPassword,
+  })
+}
+
+export async function changePassword(currentPassword, newPassword) {
+  const res = await apiFetch('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  const payload = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(payload.error || `Error ${res.status}`)
+  return payload
+}
+
 export async function fetchMe() {
   const res = await apiFetch('/api/auth/me')
   const body = await res.json().catch(() => ({}))

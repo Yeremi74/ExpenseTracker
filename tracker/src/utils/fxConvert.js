@@ -6,10 +6,10 @@ export function convertToTriple(rawAmount, unit, usdtBs, bcvUsdBs) {
     throw new Error('Importe no válido')
   }
   if (!Number.isFinite(rU) || rU <= 0) {
-    throw new Error('Indica el precio del USDT en bolívares (mayor que 0)')
+    throw new Error('Indica el precio del USDT en bolívares')
   }
   if (!Number.isFinite(rD) || rD <= 0) {
-    throw new Error('Indica el precio del dólar BCV en bolívares (mayor que 0)')
+    throw new Error('Indica el precio del dólar BCV en bolívares')
   }
 
   let bs
@@ -37,6 +37,14 @@ export function convertToTriple(rawAmount, unit, usdtBs, bcvUsdBs) {
     usdt: snap(usdt, 6),
     usdBcv: snap(usdBcv, 4),
   }
+}
+
+/** True cuando falta o es inválido el precio USDT o BCV usado en la conversión. */
+export function isFxRatesValidationError(err) {
+  const msg = err?.message ?? ''
+  return (
+    msg.includes('precio del USDT') || msg.includes('precio del dólar BCV')
+  )
 }
 
 function snap(n, decimals) {

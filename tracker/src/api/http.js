@@ -102,7 +102,14 @@ export async function apiFetch(input, init = {}) {
     clearToken()
     const path =
       typeof window !== 'undefined' ? window.location.pathname || '' : ''
-    if (path && !path.startsWith('/login') && !path.startsWith('/registro')) {
+    if (
+      path &&
+      !path.startsWith('/login') &&
+      !path.startsWith('/register') &&
+      !path.startsWith('/registro') &&
+      !path.startsWith('/password-reset') &&
+      !path.startsWith('/recuperar-contrasena')
+    ) {
       window.location.replace('/login')
     }
   }

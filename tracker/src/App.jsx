@@ -12,8 +12,10 @@ import MonthlyDebtsPage from './pages/Monthly/MonthlyDebts.jsx'
 import MonthlyExpensesPage from './pages/Monthly/MonthlyExpenses.jsx'
 import MonthlyLayout from './pages/Monthly/MonthlyLayout.jsx'
 import WishlistPage from './pages/Wishlist/Wishlist.jsx'
+import ProfilePage from './pages/Profile/Profile.jsx'
 import LoginPage from './pages/Login/Login.jsx'
 import RegisterPage from './pages/Register/Register.jsx'
+import PasswordResetPage from './pages/PasswordReset/PasswordReset.jsx'
 
 function GuestOnly() {
   const { user, loading } = useAuth()
@@ -39,17 +41,29 @@ export default function App() {
     <Routes>
       <Route element={<GuestOnly />}>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
+        <Route path="/registro" element={<Navigate to="/register" replace />} />
+        <Route
+          path="/recuperar-contrasena"
+          element={<Navigate to="/password-reset" replace />}
+        />
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route index element={<Budget503020Page />} />
           <Route element={<MonthlyLayout />}>
-            <Route path="gastos" element={<MonthlyExpensesPage />} />
-            <Route path="deudas" element={<MonthlyDebtsPage />} />
+            <Route path="expenses" element={<MonthlyExpensesPage />} />
+            <Route path="debts" element={<MonthlyDebtsPage />} />
           </Route>
-          <Route path="mensual" element={<Navigate to="/gastos" replace />} />
-          <Route path="quiero-comprar" element={<WishlistPage />} />
+          <Route path="gastos" element={<Navigate to="/expenses" replace />} />
+          <Route path="deudas" element={<Navigate to="/debts" replace />} />
+          <Route path="mensual" element={<Navigate to="/expenses" replace />} />
+          <Route path="monthly" element={<Navigate to="/expenses" replace />} />
+          <Route path="wishlist" element={<WishlistPage />} />
+          <Route path="quiero-comprar" element={<Navigate to="/wishlist" replace />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="perfil" element={<Navigate to="/profile" replace />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

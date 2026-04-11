@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { convertToTriple } from '../../utils/fxConvert.js'
+import { convertToTriple, isFxRatesValidationError } from '../../utils/fxConvert.js'
 import { getSetting, putSetting } from '../../api/settingsClient.js'
+import { notifySuccess } from '../../utils/successNotify.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
 import {
   LEGACY_STORAGE_MONTHLY,
@@ -32,6 +33,13 @@ export function useMonthlyData() {
   const [persistOk, setPersistOk] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [syncError, setSyncError] = useState('')
+  const [saveBusy, setSaveBusy] = useState(false)
+  const [pendingRemove, setPendingRemove] = useState(null)
+  const [ratesSyncing, setRatesSyncing] = useState(false)
+
+  const dataRef = useRef(data)
+  dataRef.current = data
+  const fxRatesPanelRef = useRef(null)
 
   useEffect(() => {
     setFormError('')
@@ -96,17 +104,18 @@ export function useMonthlyData() {
   useEffect(() => {
     if (!ready || !persistOk) return
     const t = setTimeout(() => {
-      Promise.all([
-        putSetting('fx_rates', rates),
-        putSetting('monthly', data),
-      ])
-        .then(() => setSyncError(''))
-        .catch((e) => {
-          setSyncError(e.message || 'Error al guardar')
+      setRatesSyncing(true)
+      putSetting('fx_rates', rates)
+        .then(() => {
+          setSyncError('')
         })
+        .catch((e) => {
+          setSyncError(e.message || 'Error al guardar las tasas')
+        })
+        .finally(() => setRatesSyncing(false))
     }, 400)
     return () => clearTimeout(t)
-  }, [rates, data, ready, persistOk])
+  }, [rates, ready, persistOk])
 
   const filteredExpenses = useMemo(() => {
     return data.expenses
@@ -120,8 +129,9 @@ export function useMonthlyData() {
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   }, [data.debts, monthFilter])
 
-  function addItem(kind, draft, setDraft) {
+  async function addItem(kind, draft, setDraft) {
     setFormError('')
+    let item
     try {
       const triple = convertToTriple(
         draft.amount,
@@ -146,7 +156,7 @@ export function useMonthlyData() {
       }
       const description =
         typeof draft.description === 'string' ? draft.description.trim() : ''
-      const item =
+      item =
         kind === 'expense'
           ? {
               id: crypto.randomUUID(),
@@ -167,26 +177,64 @@ export function useMonthlyData() {
               usdBcv: triple.usdBcv,
               debtFlow: draft.debtFlow === 'receive' ? 'receive' : 'pay',
             }
-      setData((prev) => ({
-        ...prev,
-        [kind === 'expense' ? 'expenses' : 'debts']: [
-          ...(kind === 'expense' ? prev.expenses : prev.debts),
-          item,
-        ],
-      }))
+    } catch (e) {
+      setFormError(e.message || 'No se pudo validar el registro.')
+      if (isFxRatesValidationError(e)) {
+        requestAnimationFrame(() => {
+          fxRatesPanelRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          })
+        })
+      }
+      return
+    }
+
+    const listKey = kind === 'expense' ? 'expenses' : 'debts'
+    const prev = dataRef.current
+    const nextData = {
+      ...prev,
+      [listKey]: [...prev[listKey], item],
+    }
+
+    setSaveBusy(true)
+    try {
+      await putSetting('monthly', nextData)
+      setData(nextData)
+      setSyncError('')
+      notifySuccess(
+        kind === 'expense'
+          ? 'Se ha guardado el gasto.'
+          : 'Se ha guardado el registro de deuda.'
+      )
       if (kind === 'expense') setDraft(emptyDraftExpense())
       else setDraft(emptyDraftDebt())
     } catch (e) {
-      setFormError(e.message || 'No se pudo guardar el registro.')
+      window.alert(e.message || 'No se pudo guardar en el servidor.')
+    } finally {
+      setSaveBusy(false)
     }
   }
 
-  function removeItem(kind, id) {
+  async function removeItem(kind, id) {
     const key = kind === 'expense' ? 'expenses' : 'debts'
-    setData((prev) => ({
+    const prev = dataRef.current
+    const nextData = {
       ...prev,
       [key]: prev[key].filter((r) => r.id !== id),
-    }))
+    }
+
+    setPendingRemove({ kind, id })
+    try {
+      await putSetting('monthly', nextData)
+      setData(nextData)
+      setSyncError('')
+      notifySuccess('Se ha eliminado el registro.')
+    } catch (e) {
+      window.alert(e.message || 'No se pudo eliminar en el servidor.')
+    } finally {
+      setPendingRemove(null)
+    }
   }
 
   const sumTriple = (rows) =>
@@ -225,6 +273,9 @@ export function useMonthlyData() {
     ready,
     loadError,
     syncError,
+    saveBusy,
+    pendingRemove,
+    ratesSyncing,
     filteredExpenses,
     filteredDebts,
     totalsExp,
@@ -233,5 +284,6 @@ export function useMonthlyData() {
     totalsDebtReceive,
     addItem,
     removeItem,
+    fxRatesPanelRef,
   }
 }

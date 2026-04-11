@@ -1,11 +1,18 @@
 const express = require("express");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { ObjectId } = require("mongodb");
 const { getDb } = require("../config/database");
 const { signToken, requireAuth } = require("../middleware/auth");
+const { sendPasswordResetOtp } = require("../services/mail");
 
 const router = express.Router();
 const USERS = "users";
+const PASSWORD_RESET_OTPS = "password_reset_otps";
+
+const OTP_TTL_MS = 15 * 60 * 1000;
+const MIN_RESEND_MS = 60 * 1000;
+const MAX_OTP_ATTEMPTS = 5;
 
 function normalizeEmail(email) {
   return String(email || "")
@@ -16,6 +23,14 @@ function normalizeEmail(email) {
 function isValidEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
+
+function generateOtpDigits() {
+  const n = crypto.randomInt(0, 1_000_000);
+  return String(n).padStart(6, "0");
+}
+
+const RESET_EMAIL_SENT_MESSAGE =
+  "Te hemos enviado un código a tu correo.";
 
 router.post("/register", async (req, res) => {
   try {
@@ -88,6 +103,252 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "Error al iniciar sesión" });
+  }
+});
+
+router.post("/password-reset/request", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: "Email no válido" });
+    }
+
+    const db = getDb();
+    const user = await db.collection(USERS).findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        error: "No hay ninguna cuenta registrada con ese email.",
+      });
+    }
+
+    const col = db.collection(PASSWORD_RESET_OTPS);
+    const existing = await col.findOne({ email });
+    const now = Date.now();
+    if (
+      existing?.lastSentAt &&
+      now - new Date(existing.lastSentAt).getTime() < MIN_RESEND_MS
+    ) {
+      return res.status(429).json({
+        error: "Espera un minuto antes de pedir otro código",
+      });
+    }
+
+    const plainOtp = generateOtpDigits();
+    const codeHash = await bcrypt.hash(plainOtp, 10);
+    const expiresAt = new Date(now + OTP_TTL_MS);
+
+    await col.updateOne(
+      { email },
+      {
+        $set: {
+          codeHash,
+          expiresAt,
+          lastSentAt: new Date(now),
+          failedAttempts: 0,
+        },
+      },
+      { upsert: true }
+    );
+
+    try {
+      await sendPasswordResetOtp(email, plainOtp);
+    } catch (mailErr) {
+      console.error(mailErr);
+      await col.deleteOne({ email });
+      return res.status(503).json({
+        error:
+          mailErr.message ||
+          "No se pudo enviar el correo. Revisa la configuración SMTP.",
+      });
+    }
+
+    res.json({ ok: true, message: RESET_EMAIL_SENT_MESSAGE });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Error" });
+  }
+});
+
+/** Valida email + código sin cambiar contraseña ni consumir el OTP (paso previo al confirm). */
+router.post("/password-reset/verify-code", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const code = req.body?.code;
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: "Email no válido" });
+    }
+    if (typeof code !== "string" || !/^\d{6}$/.test(code.trim())) {
+      return res
+        .status(400)
+        .json({ error: "Introduce el código de 6 dígitos" });
+    }
+
+    const db = getDb();
+    const col = db.collection(PASSWORD_RESET_OTPS);
+    const doc = await col.findOne({ email });
+    if (!doc || !doc.codeHash) {
+      return res.status(400).json({
+        error: "Código incorrecto o caducado. Solicita uno nuevo.",
+      });
+    }
+    if (new Date(doc.expiresAt).getTime() < Date.now()) {
+      await col.deleteOne({ email });
+      return res.status(400).json({
+        error: "El código ha caducado. Solicita uno nuevo.",
+      });
+    }
+
+    const attempts = doc.failedAttempts || 0;
+    if (attempts >= MAX_OTP_ATTEMPTS) {
+      await col.deleteOne({ email });
+      return res.status(400).json({
+        error: "Demasiados intentos. Solicita un código nuevo.",
+      });
+    }
+
+    const match = await bcrypt.compare(code.trim(), doc.codeHash);
+    if (!match) {
+      await col.updateOne({ email }, { $inc: { failedAttempts: 1 } });
+      return res.status(400).json({ error: "Código incorrecto" });
+    }
+
+    const user = await db.collection(USERS).findOne({ email });
+    if (!user) {
+      await col.deleteOne({ email });
+      return res.status(400).json({ error: "Usuario no encontrado" });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Error" });
+  }
+});
+
+router.post("/password-reset/confirm", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const code = req.body?.code;
+    const newPassword = req.body?.newPassword;
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: "Email no válido" });
+    }
+    if (typeof code !== "string" || !/^\d{6}$/.test(code.trim())) {
+      return res.status(400).json({ error: "Introduce el código de 6 dígitos" });
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({
+        error: "La contraseña debe tener al menos 8 caracteres",
+      });
+    }
+
+    const db = getDb();
+    const col = db.collection(PASSWORD_RESET_OTPS);
+    const doc = await col.findOne({ email });
+    if (!doc || !doc.codeHash) {
+      return res.status(400).json({
+        error: "Código incorrecto o caducado. Solicita uno nuevo.",
+      });
+    }
+    if (new Date(doc.expiresAt).getTime() < Date.now()) {
+      await col.deleteOne({ email });
+      return res.status(400).json({
+        error: "El código ha caducado. Solicita uno nuevo.",
+      });
+    }
+
+    const attempts = doc.failedAttempts || 0;
+    if (attempts >= MAX_OTP_ATTEMPTS) {
+      await col.deleteOne({ email });
+      return res.status(400).json({
+        error: "Demasiados intentos. Solicita un código nuevo.",
+      });
+    }
+
+    const match = await bcrypt.compare(code.trim(), doc.codeHash);
+    if (!match) {
+      await col.updateOne(
+        { email },
+        { $inc: { failedAttempts: 1 } }
+      );
+      return res.status(400).json({ error: "Código incorrecto" });
+    }
+
+    const user = await db.collection(USERS).findOne({ email });
+    if (!user) {
+      await col.deleteOne({ email });
+      return res.status(400).json({ error: "Usuario no encontrado" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await db
+      .collection(USERS)
+      .updateOne({ _id: user._id }, { $set: { passwordHash } });
+    await col.deleteOne({ email });
+
+    const userId = user._id.toString();
+    const token = signToken({ userId, email: user.email });
+
+    res.json({
+      token,
+      user: { id: userId, email: user.email },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Error" });
+  }
+});
+
+/** Con sesión válida: contraseña actual + nueva. No usa OTP (el correo ya está verificado al iniciar sesión). */
+router.post("/change-password", requireAuth, async (req, res) => {
+  try {
+    const currentPassword = req.body?.currentPassword;
+    const newPassword = req.body?.newPassword;
+
+    if (typeof currentPassword !== "string" || !currentPassword) {
+      return res.status(400).json({ error: "Indica tu contraseña actual" });
+    }
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({
+        error: "La nueva contraseña debe tener al menos 8 caracteres",
+      });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        error: "La nueva contraseña debe ser distinta a la actual",
+      });
+    }
+
+    const db = getDb();
+    let oid;
+    try {
+      oid = new ObjectId(req.userId);
+    } catch {
+      return res.status(401).json({ error: "Usuario inválido" });
+    }
+    const user = await db.collection(USERS).findOne({ _id: oid });
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ error: "Usuario no encontrado" });
+    }
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) {
+      return res
+        .status(401)
+        .json({ error: "La contraseña actual no es correcta" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await db
+      .collection(USERS)
+      .updateOne({ _id: oid }, { $set: { passwordHash } });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Error" });
   }
 });
 

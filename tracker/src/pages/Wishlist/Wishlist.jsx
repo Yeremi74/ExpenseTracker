@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { apiFetch } from '../../api/http.js'
 import { getSetting, putSetting } from '../../api/settingsClient.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
+import { notifySuccess } from '../../utils/successNotify.js'
 import SettingsPageLayout from '../../components/SettingsPageLayout/SettingsPageLayout.jsx'
 import f from '../../styles/forms.module.css'
 import s from './Wishlist.module.css'
@@ -317,6 +318,8 @@ function SortableWishlist({ title, hint, items, onItemsChange }) {
             'La lista cambió mientras la IA respondía; inténtalo de nuevo.'
           )
           staleRef.current = false
+        } else {
+          notifySuccess('Se ha aplicado el orden correctamente.')
         }
       }, 0)
     } catch (e) {

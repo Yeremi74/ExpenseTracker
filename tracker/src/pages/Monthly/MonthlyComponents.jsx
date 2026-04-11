@@ -25,10 +25,26 @@ function formatUsdt(n) {
   }).format(n)
 }
 
+/** Saldo: lo que te deben menos lo que tú debes (misma moneda por columna). */
+function netBalance(receive, pay) {
+  return {
+    bs: receive.bs - pay.bs,
+    usdt: receive.usdt - pay.usdt,
+    usdBcv: receive.usdBcv - pay.usdBcv,
+  }
+}
+
+function balanceToneClass(n) {
+  if (n > 0) return s.netPositive
+  if (n < 0) return s.netNegative
+  return ''
+}
+
 export function TransactionTable({
   variant,
   rows,
   onRemove,
+  pendingRemove,
   totals,
   totalsPay,
   totalsReceive,
@@ -37,17 +53,36 @@ export function TransactionTable({
     variant === 'debt' ? 'Persona / referencia' : 'Concepto'
 
   if (rows.length === 0) {
+    const isDebtEmpty = variant === 'debt'
+    const netEmpty =
+      isDebtEmpty && totalsPay && totalsReceive
+        ? netBalance(totalsReceive, totalsPay)
+        : totals
     return (
       <div className={s.monthlyTableEmpty}>
         <p className={s.monthlyEmpty}>No hay registros en este mes.</p>
         <p className={s.monthlyTotalsInline} aria-live="polite">
-          Total: Bs {formatBs(totals.bs)} · USDT {formatUsdt(totals.usdt)} · USD
-          BCV {formatUsd(totals.usdBcv)}
+          {isDebtEmpty && totalsPay && totalsReceive ? (
+            <>
+              Saldo neto (me deben − debo pagar): Bs {formatBs(netEmpty.bs)} ·
+              USDT {formatUsdt(netEmpty.usdt)} · USD BCV{' '}
+              {formatUsd(netEmpty.usdBcv)}
+            </>
+          ) : (
+            <>
+              Total: Bs {formatBs(totals.bs)} · USDT {formatUsdt(totals.usdt)}{' '}
+              · USD BCV {formatUsd(totals.usdBcv)}
+            </>
+          )}
         </p>
       </div>
     )
   }
   const isDebt = variant === 'debt'
+  const debtNet =
+    isDebt && totalsPay && totalsReceive
+      ? netBalance(totalsReceive, totalsPay)
+      : null
   return (
     <div className={s.tableWrap}>
       <table className={s.monthlyTable}>
@@ -94,9 +129,14 @@ export function TransactionTable({
                   type="button"
                   className={`${f.btnRemove} ${f.btnRemoveTable}`}
                   aria-label="Eliminar fila"
+                  disabled={Boolean(pendingRemove)}
                   onClick={() => onRemove(r.id)}
                 >
-                  &times;
+                  {pendingRemove &&
+                  pendingRemove.kind === variant &&
+                  pendingRemove.id === r.id
+                    ? '…'
+                    : '×'}
                 </button>
               </td>
             </tr>
@@ -125,22 +165,52 @@ export function TransactionTable({
               </tr>
             </>
           ) : null}
-          <tr>
-            <td colSpan={isDebt ? 4 : 3}>
-              <strong>Total</strong>
-            </td>
-            <td>{formatBs(totals.bs)}</td>
-            <td>{formatUsdt(totals.usdt)}</td>
-            <td>{formatUsd(totals.usdBcv)}</td>
-            <td />
-          </tr>
+          {isDebt && debtNet ? (
+            <tr className={s.netBalanceRow}>
+              <td colSpan={isDebt ? 4 : 3}>
+                <strong>Saldo neto</strong>
+                <span className={s.netBalanceHint}>
+                  Me deben − debo pagar. Positivo: te sobra; negativo: te falta
+                  para cubrir lo que debes.
+                </span>
+              </td>
+              <td className={balanceToneClass(debtNet.bs)}>
+                {formatBs(debtNet.bs)}
+              </td>
+              <td className={balanceToneClass(debtNet.usdt)}>
+                {formatUsdt(debtNet.usdt)}
+              </td>
+              <td className={balanceToneClass(debtNet.usdBcv)}>
+                {formatUsd(debtNet.usdBcv)}
+              </td>
+              <td />
+            </tr>
+          ) : (
+            <tr>
+              <td colSpan={isDebt ? 4 : 3}>
+                <strong>Total</strong>
+              </td>
+              <td>{formatBs(totals.bs)}</td>
+              <td>{formatUsdt(totals.usdt)}</td>
+              <td>{formatUsd(totals.usdBcv)}</td>
+              <td />
+            </tr>
+          )}
         </tfoot>
       </table>
     </div>
   )
 }
 
-export function TransactionForm({ variant, title, draft, setDraft, onSubmit }) {
+export function TransactionForm({
+  variant,
+  title,
+  draft,
+  setDraft,
+  onSubmit,
+  submitBusy = false,
+  fxPanel = null,
+}) {
   const primaryLabel =
     variant === 'debt'
       ? draft.debtFlow === 'receive'
@@ -157,6 +227,7 @@ export function TransactionForm({ variant, title, draft, setDraft, onSubmit }) {
       }}
     >
       <p className={s.monthlyFormTitle}>{title}</p>
+      {fxPanel}
       <div className={s.monthlyFormGrid}>
         {variant === 'debt' ? (
           <label
@@ -250,8 +321,8 @@ export function TransactionForm({ variant, title, draft, setDraft, onSubmit }) {
           </select>
         </label>
       </div>
-      <button type="submit" className={f.btnSubmit}>
-        Guardar
+      <button type="submit" className={f.btnSubmit} disabled={submitBusy}>
+        {submitBusy ? 'Guardando…' : 'Guardar'}
       </button>
     </form>
   )

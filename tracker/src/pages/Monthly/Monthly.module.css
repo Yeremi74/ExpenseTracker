@@ -8,6 +8,13 @@
   box-shadow: var(--shadow);
 }
 
+/* Dentro del bloque «Añadir gasto / deuda» (mismo monthlyBlock) */
+.fxPanelInForm {
+  margin-bottom: 16px;
+  background: var(--surface-elevated);
+  box-shadow: none;
+}
+
 .fxPanelTitle {
   font-size: 1.05rem;
   margin: 0 0 6px;
@@ -18,6 +25,11 @@
   color: var(--text);
   margin: 0 0 14px;
   line-height: 145%;
+}
+
+.fxPanelSyncing {
+  font-style: italic;
+  opacity: 0.9;
 }
 
 .fxPanelGrid {
@@ -195,10 +207,42 @@
   border-bottom: 1px dashed var(--border);
 }
 
+.netBalanceRow td {
+  vertical-align: top;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.netBalanceHint {
+  display: block;
+  margin-top: 6px;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.4;
+  max-width: 36rem;
+}
+
+.netPositive {
+  color: #86efac;
+}
+
+.netNegative {
+  color: #fca5a5;
+}
+
 .monthlyTable tfoot td {
   border-bottom: none;
   padding-top: 12px;
   color: var(--text-h);
+}
+
+.monthlyTable tfoot td.netPositive {
+  color: #86efac;
+}
+
+.monthlyTable tfoot td.netNegative {
+  color: #fca5a5;
 }
 
 .monthlyForm {
