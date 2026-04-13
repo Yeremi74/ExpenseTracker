@@ -107,15 +107,22 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/password-reset/request", async (req, res) => {
+  const logPrefix = "[password-reset/request]";
   try {
     const email = normalizeEmail(req.body?.email);
+    console.log(logPrefix, "inicio", {
+      email,
+      at: new Date().toISOString(),
+    });
     if (!email || !isValidEmail(email)) {
+      console.log(logPrefix, "400 email inválido");
       return res.status(400).json({ error: "Email no válido" });
     }
 
     const db = getDb();
     const user = await db.collection(USERS).findOne({ email });
     if (!user) {
+      console.log(logPrefix, "404 usuario no existe", { email });
       return res.status(404).json({
         error: "No hay ninguna cuenta registrada con ese email.",
       });
@@ -124,10 +131,29 @@ router.post("/password-reset/request", async (req, res) => {
     const col = db.collection(PASSWORD_RESET_OTPS);
     const existing = await col.findOne({ email });
     const now = Date.now();
+    const lastSentMs = existing?.lastSentAt
+      ? now - new Date(existing.lastSentAt).getTime()
+      : null;
+    console.log(logPrefix, "estado cooldown", {
+      email,
+      hayRegistroPrevio: Boolean(existing),
+      lastSentAt: existing?.lastSentAt ?? null,
+      msDesdeUltimoEnvio: lastSentMs,
+      minResendMs: MIN_RESEND_MS,
+      bloqueadoPorCooldown:
+        Boolean(existing?.lastSentAt) &&
+        lastSentMs != null &&
+        lastSentMs < MIN_RESEND_MS,
+    });
     if (
       existing?.lastSentAt &&
       now - new Date(existing.lastSentAt).getTime() < MIN_RESEND_MS
     ) {
+      console.log(logPrefix, "429 rate limit", {
+        email,
+        msDesdeUltimoEnvio: lastSentMs,
+        esperarMs: MIN_RESEND_MS - (lastSentMs ?? 0),
+      });
       return res.status(429).json({
         error: "Espera un minuto antes de pedir otro código",
       });
@@ -149,11 +175,12 @@ router.post("/password-reset/request", async (req, res) => {
       },
       { upsert: true }
     );
+    console.log(logPrefix, "OTP guardado en DB, enviando correo…", { email });
 
     try {
       await sendPasswordResetOtp(email, plainOtp);
     } catch (mailErr) {
-      console.error(mailErr);
+      console.error(logPrefix, "fallo SMTP", mailErr);
       await col.deleteOne({ email });
       return res.status(503).json({
         error:
@@ -162,9 +189,10 @@ router.post("/password-reset/request", async (req, res) => {
       });
     }
 
+    console.log(logPrefix, "200 correo enviado OK", { email });
     res.json({ ok: true, message: RESET_EMAIL_SENT_MESSAGE });
   } catch (err) {
-    console.error(err);
+    console.error(logPrefix, "500", err);
     res.status(500).json({ error: err.message || "Error" });
   }
 });

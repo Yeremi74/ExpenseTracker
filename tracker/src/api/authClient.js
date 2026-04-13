@@ -21,11 +21,19 @@ export async function loginRequest(email, password) {
 }
 
 export async function requestPasswordReset(email) {
+  const t0 = performance.now()
+  console.log('[requestPasswordReset] enviando', { email, t0 })
   const res = await apiFetch('/api/auth/password-reset/request', {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
   const payload = await res.json().catch(() => ({}))
+  console.log('[requestPasswordReset] respuesta', {
+    status: res.status,
+    ok: res.ok,
+    ms: Math.round(performance.now() - t0),
+    payload,
+  })
   if (!res.ok) throw new Error(payload.error || `Error ${res.status}`)
   return payload
 }
