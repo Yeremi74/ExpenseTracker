@@ -2,35 +2,39 @@ const nodemailer = require("nodemailer");
 
 const RESEND_API = "https://api.resend.com/emails";
 const EMAILJS_SEND = "https://api.emailjs.com/api/v1.0/email/send";
+const EMAILJS_SECURITY_URL =
+  "https://dashboard.emailjs.com/admin/account/security";
 
 /**
- * EmailJS desde el servidor (HTTPS). La plantilla en el panel debe usar las mismas
- * variables: {{recipient_email}}, {{code}} (y opcionalmente {{subject}}).
- * Activa el envío por API no-browser en Account → Security (EmailJS).
+ * EmailJS desde el servidor (HTTPS). La plantilla debe usar {{recipient_email}}, {{code}}, etc.
+ * En el panel: Account → Security → activar acceso API desde entornos no-browser.
  */
 async function sendViaEmailJs({ to, code }) {
   const serviceId = process.env.EMAILJS_SERVICE_ID;
   const templateId = process.env.EMAILJS_TEMPLATE_ID;
   const publicKey = process.env.EMAILJS_PUBLIC_KEY;
-  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "";
+  const privateKey = String(process.env.EMAILJS_PRIVATE_KEY || "").trim();
   if (!serviceId || !templateId || !publicKey) {
     throw new Error(
       "EmailJS: define EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID y EMAILJS_PUBLIC_KEY"
+    );
+  }
+  if (!privateKey) {
+    throw new Error(
+      "EmailJS: define EMAILJS_PRIVATE_KEY (Account → API keys → Private Key). Obligatoria con API desde servidor / strict mode."
     );
   }
   const payload = {
     service_id: serviceId,
     template_id: templateId,
     user_id: publicKey,
+    accessToken: privateKey,
     template_params: {
       recipient_email: to,
       code,
       subject: "Código para restablecer tu contraseña",
     },
   };
-  if (privateKey) {
-    payload.accessToken = privateKey;
-  }
   const res = await fetch(EMAILJS_SEND, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,7 +42,15 @@ async function sendViaEmailJs({ to, code }) {
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(text || `EmailJS HTTP ${res.status}`);
+    let msg = text || `EmailJS HTTP ${res.status}`;
+    if (/non-browser|non browser|disabled/i.test(msg)) {
+      msg += `. Activa "API access from non-browser environments" en ${EMAILJS_SECURITY_URL}`;
+    }
+    if (/strict mode|private key/i.test(msg)) {
+      msg +=
+        " Añade EMAILJS_PRIVATE_KEY en el servidor (misma pantalla de API keys que la public key).";
+    }
+    throw new Error(msg);
   }
 }
 
