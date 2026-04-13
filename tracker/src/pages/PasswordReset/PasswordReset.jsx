@@ -151,7 +151,13 @@ export default function PasswordResetPage() {
       setDigits(emptyDigits())
       setStep('otp')
     } catch (err) {
-      setError(err.message || 'No se pudo enviar el código')
+      const base = err.message || 'No se pudo enviar el código'
+      const secs = err.retryAfterSeconds
+      setError(
+        typeof secs === 'number'
+          ? `${base} Puedes volver a intentarlo en ${secs}s.`
+          : base
+      )
     } finally {
       requestOtpRef.current = false
       setBusy(false)

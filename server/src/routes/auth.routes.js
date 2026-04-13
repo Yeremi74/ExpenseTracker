@@ -149,13 +149,17 @@ router.post("/password-reset/request", async (req, res) => {
       existing?.lastSentAt &&
       now - new Date(existing.lastSentAt).getTime() < MIN_RESEND_MS
     ) {
+      const msLeft = MIN_RESEND_MS - (now - new Date(existing.lastSentAt).getTime());
+      const retryAfterSeconds = Math.max(1, Math.ceil(msLeft / 1000));
       console.log(logPrefix, "429 rate limit", {
         email,
         msDesdeUltimoEnvio: lastSentMs,
-        esperarMs: MIN_RESEND_MS - (lastSentMs ?? 0),
+        esperarMs: msLeft,
+        retryAfterSeconds,
       });
       return res.status(429).json({
-        error: "Espera un minuto antes de pedir otro código",
+        error: "Espera antes de pedir otro código.",
+        retryAfterSeconds,
       });
     }
 

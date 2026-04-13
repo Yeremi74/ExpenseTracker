@@ -34,7 +34,13 @@ export async function requestPasswordReset(email) {
     ms: Math.round(performance.now() - t0),
     payload,
   })
-  if (!res.ok) throw new Error(payload.error || `Error ${res.status}`)
+  if (!res.ok) {
+    const err = new Error(payload.error || `Error ${res.status}`)
+    if (typeof payload.retryAfterSeconds === 'number') {
+      err.retryAfterSeconds = payload.retryAfterSeconds
+    }
+    throw err
+  }
   return payload
 }
 
