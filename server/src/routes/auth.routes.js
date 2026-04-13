@@ -184,7 +184,7 @@ router.post("/password-reset/request", async (req, res) => {
     try {
       await sendPasswordResetOtp(email, plainOtp);
     } catch (mailErr) {
-      console.error(logPrefix, "fallo SMTP", mailErr);
+      console.error(logPrefix, "fallo envío correo", mailErr);
       await col.deleteOne({ email });
       return res.status(503).json({
         error:
