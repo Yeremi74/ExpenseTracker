@@ -2,7 +2,6 @@ const nodemailer = require("nodemailer");
 
 function createTransport() {
   const host = process.env.SMTP_HOST;
-  console.log('process.env', process.env);
   if (!host) return null;
   return nodemailer.createTransport({
     host,

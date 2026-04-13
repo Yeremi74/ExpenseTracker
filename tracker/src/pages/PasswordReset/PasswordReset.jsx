@@ -100,6 +100,8 @@ export default function PasswordResetPage() {
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
   const verifyingRef = useRef(false)
+  /** Evita doble POST: el segundo suele devolver 429 y ocultar el 200 del primero. */
+  const requestOtpRef = useRef(false)
 
   const tryVerifyOtp = useCallback(async (codeStr, emailTrimmed) => {
     if (codeStr.length !== OTP_LEN) return
@@ -138,6 +140,8 @@ export default function PasswordResetPage() {
 
   async function handleRequest(e) {
     e.preventDefault()
+    if (requestOtpRef.current) return
+    requestOtpRef.current = true
     setError('')
     setInfo('')
     setBusy(true)
@@ -149,6 +153,7 @@ export default function PasswordResetPage() {
     } catch (err) {
       setError(err.message || 'No se pudo enviar el código')
     } finally {
+      requestOtpRef.current = false
       setBusy(false)
     }
   }
