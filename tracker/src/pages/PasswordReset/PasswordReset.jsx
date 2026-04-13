@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import {
@@ -99,9 +99,26 @@ export default function PasswordResetPage() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  /** Cuenta atrás en vivo cuando el servidor devuelve retryAfterSeconds (p. ej. 429). */
+  const [retryCountdown, setRetryCountdown] = useState(null)
   const verifyingRef = useRef(false)
   /** Evita doble POST: el segundo suele devolver 429 y ocultar el 200 del primero. */
   const requestOtpRef = useRef(false)
+
+  const retryTimerActive = retryCountdown != null && retryCountdown > 0
+  useEffect(() => {
+    if (!retryTimerActive) return
+    const id = setInterval(() => {
+      setRetryCountdown((c) => {
+        if (c == null || c <= 1) {
+          setError('')
+          return null
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [retryTimerActive])
 
   const tryVerifyOtp = useCallback(async (codeStr, emailTrimmed) => {
     if (codeStr.length !== OTP_LEN) return
@@ -144,6 +161,7 @@ export default function PasswordResetPage() {
     requestOtpRef.current = true
     setError('')
     setInfo('')
+    setRetryCountdown(null)
     setBusy(true)
     try {
       const { message } = await requestPasswordReset(email.trim())
@@ -153,11 +171,13 @@ export default function PasswordResetPage() {
     } catch (err) {
       const base = err.message || 'No se pudo enviar el código'
       const secs = err.retryAfterSeconds
-      setError(
-        typeof secs === 'number'
-          ? `${base} Puedes volver a intentarlo en ${secs}s.`
-          : base
-      )
+      if (typeof secs === 'number') {
+        setError(base)
+        setRetryCountdown(secs)
+      } else {
+        setError(base)
+        setRetryCountdown(null)
+      }
     } finally {
       requestOtpRef.current = false
       setBusy(false)
@@ -204,6 +224,9 @@ export default function PasswordResetPage() {
           {error ? (
             <p className={authStyles.error} role="alert">
               {error}
+              {retryCountdown != null && retryCountdown > 0 ? (
+                <> Puedes volver a intentarlo en {retryCountdown}s.</>
+              ) : null}
             </p>
           ) : null}
           <AuthFormField
@@ -258,6 +281,7 @@ export default function PasswordResetPage() {
               setDigits(emptyDigits())
               setError('')
               setInfo('')
+              setRetryCountdown(null)
             }}
           >
             Cambiar email

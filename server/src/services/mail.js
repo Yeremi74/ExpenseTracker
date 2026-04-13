@@ -1,5 +1,47 @@
 const nodemailer = require("nodemailer");
 
+const RESEND_API = "https://api.resend.com/emails";
+const EMAILJS_SEND = "https://api.emailjs.com/api/v1.0/email/send";
+
+/**
+ * EmailJS desde el servidor (HTTPS). La plantilla en el panel debe usar las mismas
+ * variables: {{recipient_email}}, {{code}} (y opcionalmente {{subject}}).
+ * Activa el envío por API no-browser en Account → Security (EmailJS).
+ */
+async function sendViaEmailJs({ to, code }) {
+  const serviceId = process.env.EMAILJS_SERVICE_ID;
+  const templateId = process.env.EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "";
+  if (!serviceId || !templateId || !publicKey) {
+    throw new Error(
+      "EmailJS: define EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID y EMAILJS_PUBLIC_KEY"
+    );
+  }
+  const payload = {
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    template_params: {
+      recipient_email: to,
+      code,
+      subject: "Código para restablecer tu contraseña",
+    },
+  };
+  if (privateKey) {
+    payload.accessToken = privateKey;
+  }
+  const res = await fetch(EMAILJS_SEND, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `EmailJS HTTP ${res.status}`);
+  }
+}
+
 function createTransport() {
   const host = process.env.SMTP_HOST;
   if (!host) return null;
@@ -11,15 +53,77 @@ function createTransport() {
       user: process.env.SMTP_USER || "",
       pass: process.env.SMTP_PASS || "",
     },
+    connectionTimeout: 20_000,
+    greetingTimeout: 20_000,
+    socketTimeout: 20_000,
   });
 }
 
 /**
- * Envía el OTP por correo. Si no hay SMTP, en desarrollo puede usarse PASSWORD_RESET_DEV_OTP=true
- * para registrar el código en consola.
+ * Envío por HTTPS (sin puertos SMTP). En Render plan gratuito los puertos 25/465/587
+ * suelen estar bloqueados; Resend u otro API evita el timeout CONN.
+ */
+async function sendViaResend({ from, to, subject, text, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const res = await fetch(RESEND_API, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      text,
+      html,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg =
+      body.message ||
+      body.error?.message ||
+      (typeof body === "string" ? body : JSON.stringify(body));
+    throw new Error(msg || `Resend HTTP ${res.status}`);
+  }
+}
+
+/**
+ * Envía el OTP por correo.
+ * - EmailJS (EMAILJS_*): HTTPS; plantilla con {{recipient_email}} y {{code}}.
+ * - RESEND_API_KEY: API HTTPS (recomendado en Render free tier).
+ * - SMTP_*: Nodemailer (puede fallar en hosting que bloquee SMTP).
+ * - PASSWORD_RESET_DEV_OTP=true: solo consola en desarrollo.
  */
 async function sendPasswordResetOtp(email, code) {
   const devLog = process.env.PASSWORD_RESET_DEV_OTP === "true";
+  const subject = "Código para restablecer tu contraseña";
+  const text = `Tu código de verificación es: ${code}\n\nVálido por 15 minutos. Si no solicitaste este cambio, ignora este mensaje.`;
+  const html = `<p>Tu código de verificación es:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p><p>Válido por 15 minutos. Si no solicitaste este cambio, ignora este mensaje.</p>`;
+
+  const useEmailJs =
+    process.env.EMAILJS_SERVICE_ID &&
+    process.env.EMAILJS_TEMPLATE_ID &&
+    process.env.EMAILJS_PUBLIC_KEY;
+
+  if (useEmailJs) {
+    await sendViaEmailJs({ to: email, code });
+    return;
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    const from =
+      process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+    if (!from) {
+      throw new Error(
+        "Define RESEND_FROM (remitente verificado en Resend) o SMTP_FROM"
+      );
+    }
+    await sendViaResend({ from, to: email, subject, text, html });
+    return;
+  }
+
   const transport = createTransport();
   if (!transport) {
     if (devLog) {
@@ -27,16 +131,16 @@ async function sendPasswordResetOtp(email, code) {
       return;
     }
     throw new Error(
-      "Correo no configurado: define SMTP_HOST (y credenciales) o PASSWORD_RESET_DEV_OTP=true en desarrollo"
+      "Correo no configurado: define EMAILJS_* o RESEND_API_KEY o SMTP_HOST (y credenciales) o PASSWORD_RESET_DEV_OTP=true en desarrollo"
     );
   }
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   await transport.sendMail({
     from,
     to: email,
-    subject: "Código para restablecer tu contraseña",
-    text: `Tu código de verificación es: ${code}\n\nVálido por 15 minutos. Si no solicitaste este cambio, ignora este mensaje.`,
-    html: `<p>Tu código de verificación es:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p><p>Válido por 15 minutos. Si no solicitaste este cambio, ignora este mensaje.</p>`,
+    subject,
+    text,
+    html,
   });
 }
 
