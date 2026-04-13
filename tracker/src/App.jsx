@@ -15,6 +15,7 @@ import WishlistPage from './pages/Wishlist/Wishlist.jsx'
 import ProfilePage from './pages/Profile/Profile.jsx'
 import LoginPage from './pages/Login/Login.jsx'
 import RegisterPage from './pages/Register/Register.jsx'
+import { passwordResetOtpEnabled } from './config/features.js'
 import PasswordResetPage from './pages/PasswordReset/PasswordReset.jsx'
 
 function GuestOnly() {
@@ -42,11 +43,26 @@ export default function App() {
       <Route element={<GuestOnly />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/password-reset" element={<PasswordResetPage />} />
+        <Route
+          path="/password-reset"
+          element={
+            passwordResetOtpEnabled ? (
+              <PasswordResetPage />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
         <Route path="/registro" element={<Navigate to="/register" replace />} />
         <Route
           path="/recuperar-contrasena"
-          element={<Navigate to="/password-reset" replace />}
+          element={
+            passwordResetOtpEnabled ? (
+              <Navigate to="/password-reset" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
       </Route>
       <Route element={<RequireAuth />}>

@@ -5,6 +5,7 @@ import AuthPageLayout from '../../components/AuthPageLayout/AuthPageLayout.jsx'
 import AuthFormField from '../../components/AuthFormField/AuthFormField.jsx'
 import AuthFooter from '../../components/AuthFooter/AuthFooter.jsx'
 import authStyles from '../../styles/authPages.module.css'
+import { passwordResetOtpEnabled } from '../../config/features.js'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -56,9 +57,11 @@ export default function LoginPage() {
         <button type="submit" className={authStyles.submit} disabled={busy}>
           {busy ? 'Accediendo…' : 'Acceder'}
         </button>
-        <p className={authStyles.forgotLink}>
-          <Link to="/password-reset">¿Olvidaste tu contraseña?</Link>
-        </p>
+        {passwordResetOtpEnabled ? (
+          <p className={authStyles.forgotLink}>
+            <Link to="/password-reset">¿Olvidaste tu contraseña?</Link>
+          </p>
+        ) : null}
       </form>
 
       <AuthFooter>
