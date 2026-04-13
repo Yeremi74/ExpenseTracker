@@ -54,7 +54,7 @@ export default function LoginPage() {
           autoComplete="current-password"
         />
         <button type="submit" className={authStyles.submit} disabled={busy}>
-          {busy ? 'Entrando…' : 'Entrar'}
+          {busy ? 'Accediendo…' : 'Acceder'}
         </button>
         <p className={authStyles.forgotLink}>
           <Link to="/password-reset">¿Olvidaste tu contraseña?</Link>

@@ -14,6 +14,54 @@ import f from '../../styles/forms.module.css'
 import s from './Budget503020.module.css'
 
 const LEGACY_STORAGE_KEY = 'tracker-503020-budget'
+const CHART_COLOR_STORAGE_KEY = 'tracker-503020-chart-colors'
+
+const DEFAULT_CHART_COLORS = {
+  needs: '#c4e7f2',
+  wants: '#ffe9c7',
+  savings: '#ead4f7',
+}
+
+function expandShortHex(hex) {
+  const h = String(hex).trim()
+  if (/^#[0-9a-fA-F]{3}$/.test(h)) {
+    return (
+      '#' +
+      h[1] +
+      h[1] +
+      h[2] +
+      h[2] +
+      h[3] +
+      h[3]
+    ).toLowerCase()
+  }
+  return h.toLowerCase()
+}
+
+function normalizeChartColors(raw) {
+  if (typeof raw !== 'object' || raw === null) {
+    return { ...DEFAULT_CHART_COLORS }
+  }
+  const pick = (v, fallback) => {
+    const s = typeof v === 'string' ? expandShortHex(v) : ''
+    return /^#[0-9a-fA-F]{6}$/.test(s) ? s : fallback
+  }
+  return {
+    needs: pick(raw.needs, DEFAULT_CHART_COLORS.needs),
+    wants: pick(raw.wants, DEFAULT_CHART_COLORS.wants),
+    savings: pick(raw.savings, DEFAULT_CHART_COLORS.savings),
+  }
+}
+
+function loadChartColors() {
+  try {
+    const stored = localStorage.getItem(CHART_COLOR_STORAGE_KEY)
+    if (!stored) return { ...DEFAULT_CHART_COLORS }
+    return normalizeChartColors(JSON.parse(stored))
+  } catch {
+    return { ...DEFAULT_CHART_COLORS }
+  }
+}
 
 const SECTION_SAVE_LABEL = {
   needs: 'Necesidades',
@@ -157,6 +205,42 @@ function buildConicBackground(tNeeds, tWants, tSavings) {
   return `conic-gradient(from -90deg, ${parts.join(', ')})`
 }
 
+/**
+ * `conic-gradient(from -90deg, …)`: el primer tramo empieza en -90° (CSS),
+ * es decir a la **izquierda** (9h), no arriba. 0–1 en sentido horario.
+ */
+function pointerFractFromTopToConicFract(fractFromTopClockwise) {
+  const t = fractFromTopClockwise % 1
+  const x = t < 0 ? t + 1 : t
+  // Desde arriba (0): izquierda = 0.25 del giro → ahí conicFract = 0
+  return (x + 0.25) % 1
+}
+
+/**
+ * `conicFract`: 0 = inicio del arco (izquierda), igual que los stops del gradiente.
+ */
+function segmentKeyAtConicFraction(tNeeds, tWants, tSavings, conicFract) {
+  const f = ((conicFract % 1) + 1) % 1
+  const total = tNeeds + tWants + tSavings
+  if (total <= 0) {
+    if (f < 1 / 3) return 'needs'
+    if (f < 2 / 3) return 'wants'
+    return 'savings'
+  }
+  const segs = [
+    { key: 'needs', amt: tNeeds },
+    { key: 'wants', amt: tWants },
+    { key: 'savings', amt: tSavings },
+  ].filter((s) => s.amt > 0)
+  let acc = 0
+  for (const s of segs) {
+    const end = acc + s.amt / total
+    if (f <= end) return s.key
+    acc = end
+  }
+  return segs[segs.length - 1].key
+}
+
 export default function Budget503020Page() {
   const [budget, setBudget] = useState(defaultState)
   const [sectionEdit, setSectionEdit] = useState(defaultSectionEdit)
@@ -168,6 +252,10 @@ export default function Budget503020Page() {
   const [loadError, setLoadError] = useState('')
   const [syncError, setSyncError] = useState('')
   const [sectionCommitting, setSectionCommitting] = useState(null)
+  const [chartColors, setChartColors] = useState(loadChartColors)
+  const colorPickerNeedsRef = useRef(null)
+  const colorPickerWantsRef = useRef(null)
+  const colorPickerSavingsRef = useRef(null)
 
   const anySectionEditing = useMemo(
     () => GROUP_DEF.some((g) => sectionEdit[g.key]),
@@ -253,6 +341,17 @@ export default function Budget503020Page() {
   }, [])
 
   useEffect(() => {
+    try {
+      localStorage.setItem(
+        CHART_COLOR_STORAGE_KEY,
+        JSON.stringify(chartColors)
+      )
+    } catch {
+      /* ignore */
+    }
+  }, [chartColors])
+
+  useEffect(() => {
     if (!ready || !persistOk) return
     const t = setTimeout(() => {
       putSetting('budget', budget)
@@ -327,6 +426,33 @@ export default function Budget503020Page() {
 
   const errBanner = loadError || syncError
 
+  function openColorPickerForConicFraction(conicFract) {
+    const key = segmentKeyAtConicFraction(tNeeds, tWants, tSavings, conicFract)
+    const map = {
+      needs: colorPickerNeedsRef,
+      wants: colorPickerWantsRef,
+      savings: colorPickerSavingsRef,
+    }
+    map[key].current?.click()
+  }
+
+  function handleDonutClick(e) {
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = e.clientX - cx
+    const dy = e.clientY - cy
+    const R = Math.min(rect.width, rect.height) / 2
+    const d = Math.hypot(dx, dy)
+    if (d > R + 3) return
+    let angle = Math.atan2(dx, -dy)
+    if (angle < 0) angle += 2 * Math.PI
+    const pointerFract = angle / (2 * Math.PI)
+    const conicFr = pointerFractFromTopToConicFract(pointerFract)
+    openColorPickerForConicFraction(conicFr)
+  }
+
   const summaryAside = (incomeEditable) => (
     <aside className={s.summary} aria-labelledby="summary-heading">
       <h2 id="summary-heading" className={s.summaryTitle}>
@@ -375,27 +501,105 @@ export default function Budget503020Page() {
         <span className={s.summaryAvailableNum}>{formatUsdt(available)}</span>
       </p>
 
-      <div className={s.pieBlock}>
+      <div
+        className={s.pieBlock}
+        style={{
+          '--chart-needs': chartColors.needs,
+          '--chart-wants': chartColors.wants,
+          '--chart-savings': chartColors.savings,
+        }}
+      >
         <div
-          className={`${s.donut}${grand <= 0 ? ` ${s.donutEmpty}` : ''}`}
+          className={`${s.donut}${grand <= 0 ? ` ${s.donutEmpty}` : ''} ${s.donutClickable}`}
           style={{ '--donut-bg': pieBg }}
-          role="img"
-          aria-label={`Gráfico circular: necesidades ${pN} por ciento, deseos ${pW} por ciento, ahorro ${pS} por ciento`}
+          role="button"
+          tabIndex={0}
+          aria-label={`Gráfico circular: necesidades ${pN} por ciento, deseos ${pW} por ciento, ahorro ${pS} por ciento. Pulsa para elegir el color del sector.`}
+          onClick={handleDonutClick}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault()
+              openColorPickerForConicFraction(0)
+            }
+          }}
         >
-          <div className={s.donutHole} />
+          <div className={s.donutHole} aria-hidden />
         </div>
         <ul className={s.legend} role="list">
           <li>
-            <span className={`${s.swatch} ${s.swatchNeeds}`} />{' '}
-            Necesidades (50) — {formatUsdt(tNeeds)}
+            <span className={s.swatchWrap}>
+              <span
+                className={s.swatchColor}
+                style={{ background: chartColors.needs }}
+                aria-hidden
+              />
+              <input
+                ref={colorPickerNeedsRef}
+                type="color"
+                className={s.colorPicker}
+                value={chartColors.needs}
+                onChange={(e) =>
+                  setChartColors((c) => ({ ...c, needs: e.target.value }))
+                }
+                aria-label="Color del sector Necesidades"
+                title="Elegir color"
+              />
+            </span>
+            <span className={s.legendText}>
+              Necesidades (50) — {formatUsdt(tNeeds)} &nbsp;
+              ({pN}% del total)
+              {/* <span className={s.legendPct}> ({pN}% del total)</span> */}
+            </span>
           </li>
           <li>
-            <span className={`${s.swatch} ${s.swatchWants}`} />{' '}
-            Deseos (30) — {formatUsdt(tWants)}
+            <span className={s.swatchWrap}>
+              <span
+                className={s.swatchColor}
+                style={{ background: chartColors.wants }}
+                aria-hidden
+              />
+              <input
+                ref={colorPickerWantsRef}
+                type="color"
+                className={s.colorPicker}
+                value={chartColors.wants}
+                onChange={(e) =>
+                  setChartColors((c) => ({ ...c, wants: e.target.value }))
+                }
+                aria-label="Color del sector Deseos"
+                title="Elegir color"
+              />
+            </span>
+            <span className={s.legendText}>
+              Deseos (30) — {formatUsdt(tWants)}
+              &nbsp; ({pW}% del total)
+              {/* <span className={s.legendPct}> ({pW}% del total)</span> */}
+            </span>
           </li>
           <li>
-            <span className={`${s.swatch} ${s.swatchSavings}`} />{' '}
-            Ahorro / deuda (20) — {formatUsdt(tSavings)}
+            <span className={s.swatchWrap}>
+              <span
+                className={s.swatchColor}
+                style={{ background: chartColors.savings }}
+                aria-hidden
+              />
+              <input
+                ref={colorPickerSavingsRef}
+                type="color"
+                className={s.colorPicker}
+                value={chartColors.savings}
+                onChange={(e) =>
+                  setChartColors((c) => ({ ...c, savings: e.target.value }))
+                }
+                aria-label="Color del sector Ahorro y deuda"
+                title="Elegir color"
+              />
+            </span>
+            <span className={s.legendText}>
+              Ahorro / deuda (20) — {formatUsdt(tSavings)}
+              &nbsp; ({pS}% del total)
+              {/* <span className={s.legendPct}> ({pS}% del total)</span> */}
+            </span>
           </li>
         </ul>
       </div>
