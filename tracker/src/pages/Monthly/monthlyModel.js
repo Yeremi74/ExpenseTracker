@@ -107,12 +107,29 @@ export function currentMonthStr() {
 
 export function emptyDraftExpense() {
   return {
+    editId: null,
     concept: '',
     description: '',
     date: new Date().toISOString().slice(0, 10),
     amount: '',
     unit: 'usdt',
   }
+}
+
+/** Convierte un registro guardado al borrador del formulario (USDT como unidad por defecto). */
+export function rowToDraft(row, kind) {
+  const draft = {
+    editId: row.id,
+    concept: row.concept,
+    description: row.description || '',
+    date: row.date,
+    amount: row.usdt ? String(row.usdt) : '',
+    unit: 'usdt',
+  }
+  if (kind === 'debt') {
+    draft.debtFlow = row.debtFlow === 'receive' ? 'receive' : 'pay'
+  }
+  return draft
 }
 
 export function emptyDraftDebt() {

@@ -23,9 +23,12 @@ export default function MonthlyDebtsPage() {
     totalsDebt,
     totalsDebtPay,
     totalsDebtReceive,
-    addItem,
+    saveItem,
+    startEditItem,
+    cancelEdit,
     removeItem,
     fxRatesPanelRef,
+    transactionFormRef,
   } = useMonthlyDataContext()
 
   const errBanner = loadError || syncError
@@ -55,6 +58,8 @@ export default function MonthlyDebtsPage() {
           variant="debt"
           rows={filteredDebts}
           pendingRemove={pendingRemove}
+          editingId={draftDebt.editId}
+          onEdit={(row) => startEditItem('debt', row)}
           onRemove={(id) => void removeItem('debt', id)}
           totals={totalsDebt}
           totalsPay={totalsDebtPay}
@@ -62,11 +67,13 @@ export default function MonthlyDebtsPage() {
         />
         <TransactionForm
           variant="debt"
-          title="Añadir deuda"
+          title={draftDebt.editId ? 'Editar deuda' : 'Añadir deuda'}
           draft={draftDebt}
           setDraft={setDraftDebt}
           submitBusy={saveBusy}
-          onSubmit={() => void addItem('debt', draftDebt, setDraftDebt)}
+          formRef={transactionFormRef}
+          onCancel={() => cancelEdit('debt')}
+          onSubmit={() => void saveItem('debt', draftDebt, setDraftDebt)}
           fxPanel={
             <FxRatesPanel
               ref={fxRatesPanelRef}

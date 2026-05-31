@@ -16,6 +16,7 @@ import {
   loadLegacyRates,
   normalizeMonthlyPayload,
   normalizeRates,
+  rowToDraft,
 } from './monthlyModel.js'
 
 export function useMonthlyData() {
@@ -40,10 +41,19 @@ export function useMonthlyData() {
   const dataRef = useRef(data)
   dataRef.current = data
   const fxRatesPanelRef = useRef(null)
+  const transactionFormRef = useRef(null)
 
   useEffect(() => {
     setFormError('')
+    setDraftExpense(emptyDraftExpense())
+    setDraftDebt(emptyDraftDebt())
   }, [location.pathname])
+
+  useEffect(() => {
+    setDraftExpense(emptyDraftExpense())
+    setDraftDebt(emptyDraftDebt())
+    setFormError('')
+  }, [monthFilter])
 
   useEffect(() => {
     let cancelled = false
@@ -129,8 +139,28 @@ export function useMonthlyData() {
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   }, [data.debts, monthFilter])
 
-  async function addItem(kind, draft, setDraft) {
+  function startEditItem(kind, row) {
     setFormError('')
+    const draft = rowToDraft(row, kind)
+    if (kind === 'expense') setDraftExpense(draft)
+    else setDraftDebt(draft)
+    requestAnimationFrame(() => {
+      transactionFormRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    })
+  }
+
+  function cancelEdit(kind) {
+    setFormError('')
+    if (kind === 'expense') setDraftExpense(emptyDraftExpense())
+    else setDraftDebt(emptyDraftDebt())
+  }
+
+  async function saveItem(kind, draft, setDraft) {
+    setFormError('')
+    const isEdit = Boolean(draft.editId)
     let item
     try {
       const triple = convertToTriple(
@@ -159,7 +189,7 @@ export function useMonthlyData() {
       item =
         kind === 'expense'
           ? {
-              id: crypto.randomUUID(),
+              id: isEdit ? draft.editId : crypto.randomUUID(),
               concept,
               description,
               date: draft.date,
@@ -168,7 +198,7 @@ export function useMonthlyData() {
               usdBcv: triple.usdBcv,
             }
           : {
-              id: crypto.randomUUID(),
+              id: isEdit ? draft.editId : crypto.randomUUID(),
               concept,
               description,
               date: draft.date,
@@ -192,10 +222,17 @@ export function useMonthlyData() {
 
     const listKey = kind === 'expense' ? 'expenses' : 'debts'
     const prev = dataRef.current
-    const nextData = {
-      ...prev,
-      [listKey]: [...prev[listKey], item],
-    }
+    const nextData = isEdit
+      ? {
+          ...prev,
+          [listKey]: prev[listKey].map((r) =>
+            r.id === draft.editId ? item : r
+          ),
+        }
+      : {
+          ...prev,
+          [listKey]: [...prev[listKey], item],
+        }
 
     setSaveBusy(true)
     try {
@@ -203,9 +240,13 @@ export function useMonthlyData() {
       setData(nextData)
       setSyncError('')
       notifySuccess(
-        kind === 'expense'
-          ? 'Se ha guardado el gasto.'
-          : 'Se ha guardado el registro de deuda.'
+        isEdit
+          ? kind === 'expense'
+            ? 'Se ha actualizado el gasto.'
+            : 'Se ha actualizado el registro de deuda.'
+          : kind === 'expense'
+            ? 'Se ha guardado el gasto.'
+            : 'Se ha guardado el registro de deuda.'
       )
       if (kind === 'expense') setDraft(emptyDraftExpense())
       else setDraft(emptyDraftDebt())
@@ -225,6 +266,11 @@ export function useMonthlyData() {
     }
 
     setPendingRemove({ kind, id })
+    if (kind === 'expense') {
+      setDraftExpense((d) => (d.editId === id ? emptyDraftExpense() : d))
+    } else {
+      setDraftDebt((d) => (d.editId === id ? emptyDraftDebt() : d))
+    }
     try {
       await putSetting('monthly', nextData)
       setData(nextData)
@@ -282,8 +328,11 @@ export function useMonthlyData() {
     totalsDebt,
     totalsDebtPay,
     totalsDebtReceive,
-    addItem,
+    saveItem,
+    startEditItem,
+    cancelEdit,
     removeItem,
     fxRatesPanelRef,
+    transactionFormRef,
   }
 }

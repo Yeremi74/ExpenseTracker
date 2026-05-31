@@ -21,9 +21,12 @@ export default function MonthlyExpensesPage() {
     ratesSyncing,
     filteredExpenses,
     totalsExp,
-    addItem,
+    saveItem,
+    startEditItem,
+    cancelEdit,
     removeItem,
     fxRatesPanelRef,
+    transactionFormRef,
   } = useMonthlyDataContext()
 
   const errBanner = loadError || syncError
@@ -53,16 +56,22 @@ export default function MonthlyExpensesPage() {
           variant="expense"
           rows={filteredExpenses}
           pendingRemove={pendingRemove}
+          editingId={draftExpense.editId}
+          onEdit={(row) => startEditItem('expense', row)}
           onRemove={(id) => void removeItem('expense', id)}
           totals={totalsExp}
         />
         <TransactionForm
           variant="expense"
-          title="Añadir gasto"
+          title={draftExpense.editId ? 'Editar gasto' : 'Añadir gasto'}
           draft={draftExpense}
           setDraft={setDraftExpense}
           submitBusy={saveBusy}
-          onSubmit={() => void addItem('expense', draftExpense, setDraftExpense)}
+          formRef={transactionFormRef}
+          onCancel={() => cancelEdit('expense')}
+          onSubmit={() =>
+            void saveItem('expense', draftExpense, setDraftExpense)
+          }
           fxPanel={
             <FxRatesPanel
               ref={fxRatesPanelRef}

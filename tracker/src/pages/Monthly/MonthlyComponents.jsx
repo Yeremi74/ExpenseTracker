@@ -44,6 +44,8 @@ export function TransactionTable({
   variant,
   rows,
   onRemove,
+  onEdit,
+  editingId,
   pendingRemove,
   totals,
   totalsPay,
@@ -102,7 +104,24 @@ export function TransactionTable({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id}>
+            <tr
+              key={r.id}
+              className={
+                editingId === r.id
+                  ? `${s.tableRowClickable} ${s.tableRowSelected}`
+                  : s.tableRowClickable
+              }
+              onClick={() => onEdit?.(r)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onEdit?.(r)
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Editar ${r.concept}`}
+            >
               {isDebt ? (
                 <td>
                   <span
@@ -130,7 +149,10 @@ export function TransactionTable({
                   className={`${f.btnRemove} ${f.btnRemoveTable}`}
                   aria-label="Eliminar fila"
                   disabled={Boolean(pendingRemove)}
-                  onClick={() => onRemove(r.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRemove(r.id)
+                  }}
                 >
                   {pendingRemove &&
                   pendingRemove.kind === variant &&
@@ -208,9 +230,12 @@ export function TransactionForm({
   draft,
   setDraft,
   onSubmit,
+  onCancel,
   submitBusy = false,
+  formRef = null,
   fxPanel = null,
 }) {
+  const isEditing = Boolean(draft.editId)
   const primaryLabel =
     variant === 'debt'
       ? draft.debtFlow === 'receive'
@@ -220,6 +245,7 @@ export function TransactionForm({
 
   return (
     <form
+      ref={formRef}
       className={s.monthlyForm}
       onSubmit={(e) => {
         e.preventDefault()
@@ -321,9 +347,25 @@ export function TransactionForm({
           </select>
         </label>
       </div>
-      <button type="submit" className={f.btnSubmit} disabled={submitBusy}>
-        {submitBusy ? 'Guardando…' : 'Guardar'}
-      </button>
+      <div className={s.monthlyFormActions}>
+        {isEditing ? (
+          <button
+            type="button"
+            className={s.btnFormCancel}
+            disabled={submitBusy}
+            onClick={onCancel}
+          >
+            Cancelar
+          </button>
+        ) : null}
+        <button type="submit" className={f.btnSubmit} disabled={submitBusy}>
+          {submitBusy
+            ? 'Guardando…'
+            : isEditing
+              ? 'Actualizar'
+              : 'Guardar'}
+        </button>
+      </div>
     </form>
   )
 }
