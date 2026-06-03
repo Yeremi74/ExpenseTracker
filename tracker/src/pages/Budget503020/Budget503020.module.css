@@ -282,57 +282,11 @@
   margin: 0 0 14px;
 }
 
-.summaryIncome,
-.summaryWallet {
+.summaryIncome {
   text-align: left;
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
-}
-
-.btnWalletSave {
-  margin-top: 12px;
-  width: 100%;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-h);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.btnWalletSave:hover:not(:disabled) {
-  border-color: var(--text-h);
-}
-
-.btnWalletSave:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.summaryLedger {
-  text-align: left;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
-  line-height: 155%;
-  color: var(--text);
-}
-
-.summaryLedgerLine {
-  margin: 0 0 8px;
-}
-
-.summaryLedgerLine:last-child {
-  margin-bottom: 0;
-}
-
-.summaryLedgerLine strong {
-  color: var(--text-h);
-  font-variant-numeric: tabular-nums;
 }
 
 .summaryIncomeLabel {
@@ -393,14 +347,6 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: #86efac;
-}
-
-.summaryAvailableHint {
-  display: block;
-  margin-top: 8px;
-  font-size: 0.78rem;
-  line-height: 140%;
-  color: var(--text);
 }
 
 .summaryTotalNum {
