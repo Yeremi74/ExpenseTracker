@@ -5,15 +5,22 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ensureServerWake } from '../../api/http.js'
 import { getSetting, putSetting } from '../../api/settingsClient.js'
 import { notifySuccess } from '../../utils/successNotify.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
 import SettingsPageLayout from '../../components/SettingsPageLayout/SettingsPageLayout.jsx'
+import f from '../../styles/forms.module.css'
+import { normalizeMonthlyPayload } from '../Monthly/monthlyModel.js'
 import {
-  currentMonthStr,
-  normalizeMonthlyPayload,
-} from '../Monthly/monthlyModel.js'
+  computeWalletAvailable,
+  defaultWallet,
+  ledgerDateLabel,
+  normalizeWallet,
+  sumUsdtFromLedger,
+  todayDateStr,
+} from './walletModel.js'
 import s from './Budget503020.module.css'
 
 const LEGACY_STORAGE_KEY = 'tracker-503020-budget'
@@ -151,18 +158,6 @@ function formatUsdt(n) {
   return `${v} USDT`
 }
 
-function monthLabel(yyyyMm) {
-  const [y, m] = yyyyMm.split('-')
-  const d = new Date(Number(y), Number(m) - 1, 1)
-  return d.toLocaleDateString('es', { month: 'long', year: 'numeric' })
-}
-
-function sumUsdtForMonth(rows, month) {
-  return rows
-    .filter((r) => r.date.startsWith(month))
-    .reduce((acc, r) => acc + (Number(r.usdt) || 0), 0)
-}
-
 function hasBudgetContent(b) {
   const inc = Number(b.income) || 0
   if (inc > 0) return true
@@ -257,6 +252,7 @@ function segmentKeyAtConicFraction(tNeeds, tWants, tSavings, conicFract) {
 }
 
 export default function Budget503020Page() {
+  const location = useLocation()
   const [budget, setBudget] = useState(defaultState)
   const [sectionEdit, setSectionEdit] = useState(defaultSectionEdit)
   const [sectionDrafts, setSectionDrafts] = useState(defaultSectionDrafts)
@@ -268,9 +264,12 @@ export default function Budget503020Page() {
   const [syncError, setSyncError] = useState('')
   const [sectionCommitting, setSectionCommitting] = useState(null)
   const [chartColors, setChartColors] = useState(loadChartColors)
-  const [monthlyIncomeUsdt, setMonthlyIncomeUsdt] = useState(0)
-  const [monthlyExpensesUsdt, setMonthlyExpensesUsdt] = useState(0)
-  const budgetMonth = currentMonthStr()
+  const [monthly, setMonthly] = useState(() =>
+    normalizeMonthlyPayload(null)
+  )
+  const [wallet, setWallet] = useState(defaultWallet)
+  const [walletDraft, setWalletDraft] = useState('')
+  const [walletSaving, setWalletSaving] = useState(false)
   const colorPickerNeedsRef = useRef(null)
   const colorPickerWantsRef = useRef(null)
   const colorPickerSavingsRef = useRef(null)
@@ -328,10 +327,12 @@ export default function Budget503020Page() {
     let cancelled = false
     ;(async () => {
       try {
-        const [remoteBudget, remoteMonthly] = await Promise.all([
-          getSetting('budget'),
-          getSetting('monthly'),
-        ])
+        const [remoteBudget, remoteMonthly, remoteWallet] =
+          await Promise.all([
+            getSetting('budget'),
+            getSetting('monthly'),
+            getSetting('wallet'),
+          ])
         if (cancelled) return
         let remote = remoteBudget
         if (isBudgetEmpty(remote)) {
@@ -342,9 +343,12 @@ export default function Budget503020Page() {
             remote = legacy
           }
         }
-        const monthly = normalizeMonthlyPayload(remoteMonthly)
-        setMonthlyIncomeUsdt(sumUsdtForMonth(monthly.incomes, budgetMonth))
-        setMonthlyExpensesUsdt(sumUsdtForMonth(monthly.expenses, budgetMonth))
+        const walletNext = normalizeWallet(remoteWallet)
+        setMonthly(normalizeMonthlyPayload(remoteMonthly))
+        setWallet(walletNext)
+        setWalletDraft(
+          walletNext.balanceUsdt > 0 ? String(walletNext.balanceUsdt) : ''
+        )
         setBudget(normalizeState(remote))
         setLoadError('')
         setPersistOk(true)
@@ -364,6 +368,24 @@ export default function Budget503020Page() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!ready || location.pathname !== '/') return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        const remoteMonthly = await getSetting('monthly')
+        if (!cancelled) {
+          setMonthly(normalizeMonthlyPayload(remoteMonthly))
+        }
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname, ready])
 
   useEffect(() => {
     try {
@@ -392,8 +414,18 @@ export default function Budget503020Page() {
   const tWants = useMemo(() => sumGroup(budget.wants), [budget.wants])
   const tSavings = useMemo(() => sumGroup(budget.savings), [budget.savings])
   const grand = tNeeds + tWants + tSavings
-  const income = monthlyIncomeUsdt
-  const available = income - grand - monthlyExpensesUsdt
+  const ledgerIncome = useMemo(
+    () => sumUsdtFromLedger(monthly.incomes, wallet.ledgerFrom),
+    [monthly.incomes, wallet.ledgerFrom]
+  )
+  const ledgerExpenses = useMemo(
+    () => sumUsdtFromLedger(monthly.expenses, wallet.ledgerFrom),
+    [monthly.expenses, wallet.ledgerFrom]
+  )
+  const available = useMemo(
+    () => computeWalletAvailable(wallet, monthly),
+    [wallet, monthly]
+  )
   const pieBg = buildConicBackground(tNeeds, tWants, tSavings)
 
   const pN = grand > 0 ? Math.round((tNeeds / grand) * 100) : 0
@@ -443,6 +475,32 @@ export default function Budget503020Page() {
 
   const errBanner = loadError || syncError
 
+  async function saveWalletBalance() {
+    const n = walletDraft === '' ? 0 : Number(walletDraft)
+    if (!Number.isFinite(n) || n < 0) {
+      window.alert('Indica un saldo válido en USDT (0 o más).')
+      return
+    }
+    const next = {
+      balanceUsdt: n,
+      ledgerFrom: todayDateStr(),
+    }
+    setWalletSaving(true)
+    try {
+      await ensureServerWake()
+      await putSetting('wallet', next)
+      setWallet(next)
+      setSyncError('')
+      notifySuccess(
+        'Saldo de billetera guardado. Los movimientos desde hoy se suman o restan del disponible.'
+      )
+    } catch (e) {
+      window.alert(e.message || 'No se pudo guardar el saldo en el servidor.')
+    } finally {
+      setWalletSaving(false)
+    }
+  }
+
   function openColorPickerForConicFraction(conicFract) {
     const key = segmentKeyAtConicFraction(tNeeds, tWants, tSavings, conicFract)
     const map = {
@@ -476,35 +534,70 @@ export default function Budget503020Page() {
         Resumen
       </h2>
 
-      <div className={s.summaryIncomeReadonly}>
-        <p className={s.summaryIncomeLabel}>Ingresos (USDT)</p>
-        <p className={s.summaryIncomeValue}>{formatUsdt(income)}</p>
-        <p className={s.summaryIncomeHint}>
-          Total de la sección Ingresos en {monthLabel(budgetMonth)}.
+      <div className={s.summaryWallet}>
+        <label className={s.summaryIncomeLabel} htmlFor="wallet-balance">
+          USDT en tu billetera (ahora)
+        </label>
+        <input
+          id="wallet-balance"
+          className={`${f.input} ${f.inputAmount} ${s.summaryIncomeInput}`}
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step="any"
+          placeholder="0"
+          value={walletDraft}
+          onChange={(e) => setWalletDraft(e.target.value)}
+          aria-describedby="wallet-balance-hint"
+        />
+        <p id="wallet-balance-hint" className={s.summaryIncomeHint}>
+          Guarda cuánto tienes hoy. A partir de ese momento, cada ingreso y
+          gasto que registres (con fecha de hoy en adelante) actualiza el
+          disponible.
         </p>
+        <button
+          type="button"
+          className={s.btnWalletSave}
+          disabled={walletSaving}
+          onClick={() => void saveWalletBalance()}
+        >
+          {walletSaving ? 'Guardando…' : 'Guardar saldo en billetera'}
+        </button>
       </div>
+
+      {wallet.ledgerFrom ? (
+        <div className={s.summaryLedger} aria-live="polite">
+          <p className={s.summaryLedgerLine}>
+            Saldo base ({ledgerDateLabel(wallet.ledgerFrom)}):{' '}
+            <strong>{formatUsdt(wallet.balanceUsdt)}</strong>
+          </p>
+          <p className={s.summaryLedgerLine}>
+            + Ingresos desde entonces:{' '}
+            <strong>{formatUsdt(ledgerIncome)}</strong>
+          </p>
+          <p className={s.summaryLedgerLine}>
+            − Gastos desde entonces:{' '}
+            <strong>{formatUsdt(ledgerExpenses)}</strong>
+          </p>
+        </div>
+      ) : null}
 
       <p className={s.summaryTotal} aria-live="polite">
         Total presupuesto (3 grupos):{' '}
         <span className={s.summaryTotalNum}>{formatUsdt(grand)}</span>
       </p>
 
-      <p className={s.summaryTotal} aria-live="polite">
-        Total gastos (sección Gastos):{' '}
-        <span className={s.summaryTotalNum}>
-          {formatUsdt(monthlyExpensesUsdt)}
-        </span>
-      </p>
-
       <p
         className={`${s.summaryAvailable}${available < 0 ? ` ${s.summaryAvailableNegative}` : ''}`}
         aria-live="polite"
       >
-        Disponible:{' '}
+        Disponible en billetera:{' '}
         <span className={s.summaryAvailableNum}>{formatUsdt(available)}</span>
-        <span className={s.summaryAvailableHint}>
-          Ingresos − presupuesto − gastos del mes.
-        </span>
+        {!wallet.ledgerFrom ? (
+          <span className={s.summaryAvailableHint}>
+            Guarda tu saldo actual para empezar a sumar y restar movimientos.
+          </span>
+        ) : null}
       </p>
 
       <div

@@ -7,7 +7,13 @@ const router = express.Router();
 
 const COLLECTION = "user_settings";
 
-const VALID_KEYS = new Set(["budget", "monthly", "wishlist", "fx_rates"]);
+const VALID_KEYS = new Set([
+  "budget",
+  "monthly",
+  "wallet",
+  "wishlist",
+  "fx_rates",
+]);
 
 function defaultFor(key) {
   switch (key) {
@@ -15,6 +21,8 @@ function defaultFor(key) {
       return { needs: [], wants: [], savings: [], income: 0 };
     case "monthly":
       return { expenses: [], incomes: [], debts: [] };
+    case "wallet":
+      return { balanceUsdt: 0, ledgerFrom: null };
     case "wishlist":
       return { personal: [], home: [] };
     case "fx_rates":
