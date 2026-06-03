@@ -32,9 +32,11 @@ export function loadLegacyMonthly() {
     const data = JSON.parse(raw)
     if (typeof data !== 'object' || data === null) return null
     const expenses = Array.isArray(data.expenses) ? data.expenses : []
+    const incomes = Array.isArray(data.incomes) ? data.incomes : []
     const debts = Array.isArray(data.debts) ? data.debts : []
     return {
       expenses: expenses.filter(validItem).map(normalizeExpense),
+      incomes: incomes.filter(validItem).map(normalizeIncome),
       debts: debts.filter(validItem).map(normalizeDebt),
     }
   } catch {
@@ -50,8 +52,9 @@ export function isFxRatesEmpty(r) {
 export function isMonthlyEmpty(d) {
   if (!d) return true
   const noExp = !Array.isArray(d.expenses) || d.expenses.length === 0
+  const noInc = !Array.isArray(d.incomes) || d.incomes.length === 0
   const noDebt = !Array.isArray(d.debts) || d.debts.length === 0
-  return noExp && noDebt
+  return noExp && noInc && noDebt
 }
 
 export function validItem(row) {
@@ -82,6 +85,10 @@ export function normalizeExpense(row) {
   return baseFields(row)
 }
 
+export function normalizeIncome(row) {
+  return baseFields(row)
+}
+
 export function normalizeDebt(row) {
   return {
     ...baseFields(row),
@@ -91,11 +98,13 @@ export function normalizeDebt(row) {
 
 export function normalizeMonthlyPayload(data) {
   if (typeof data !== 'object' || data === null)
-    return { expenses: [], debts: [] }
+    return { expenses: [], incomes: [], debts: [] }
   const expenses = Array.isArray(data.expenses) ? data.expenses : []
+  const incomes = Array.isArray(data.incomes) ? data.incomes : []
   const debts = Array.isArray(data.debts) ? data.debts : []
   return {
     expenses: expenses.filter(validItem).map(normalizeExpense),
+    incomes: incomes.filter(validItem).map(normalizeIncome),
     debts: debts.filter(validItem).map(normalizeDebt),
   }
 }
@@ -114,6 +123,10 @@ export function emptyDraftExpense() {
     amount: '',
     unit: 'usdt',
   }
+}
+
+export function emptyDraftIncome() {
+  return emptyDraftExpense()
 }
 
 /** Convierte un registro guardado al borrador del formulario (USDT como unidad por defecto). */

@@ -10,7 +10,10 @@ import { getSetting, putSetting } from '../../api/settingsClient.js'
 import { notifySuccess } from '../../utils/successNotify.js'
 import { settingsLoadErrorHint } from '../../constants/settingsUi.js'
 import SettingsPageLayout from '../../components/SettingsPageLayout/SettingsPageLayout.jsx'
-import f from '../../styles/forms.module.css'
+import {
+  currentMonthStr,
+  normalizeMonthlyPayload,
+} from '../Monthly/monthlyModel.js'
 import s from './Budget503020.module.css'
 
 const LEGACY_STORAGE_KEY = 'tracker-503020-budget'
@@ -148,6 +151,18 @@ function formatUsdt(n) {
   return `${v} USDT`
 }
 
+function monthLabel(yyyyMm) {
+  const [y, m] = yyyyMm.split('-')
+  const d = new Date(Number(y), Number(m) - 1, 1)
+  return d.toLocaleDateString('es', { month: 'long', year: 'numeric' })
+}
+
+function sumIncomeUsdtForMonth(incomes, month) {
+  return incomes
+    .filter((r) => r.date.startsWith(month))
+    .reduce((acc, r) => acc + (Number(r.usdt) || 0), 0)
+}
+
 function hasBudgetContent(b) {
   const inc = Number(b.income) || 0
   if (inc > 0) return true
@@ -253,6 +268,8 @@ export default function Budget503020Page() {
   const [syncError, setSyncError] = useState('')
   const [sectionCommitting, setSectionCommitting] = useState(null)
   const [chartColors, setChartColors] = useState(loadChartColors)
+  const [monthlyIncomeUsdt, setMonthlyIncomeUsdt] = useState(0)
+  const budgetMonth = currentMonthStr()
   const colorPickerNeedsRef = useRef(null)
   const colorPickerWantsRef = useRef(null)
   const colorPickerSavingsRef = useRef(null)
@@ -310,8 +327,12 @@ export default function Budget503020Page() {
     let cancelled = false
     ;(async () => {
       try {
-        let remote = await getSetting('budget')
+        const [remoteBudget, remoteMonthly] = await Promise.all([
+          getSetting('budget'),
+          getSetting('monthly'),
+        ])
         if (cancelled) return
+        let remote = remoteBudget
         if (isBudgetEmpty(remote)) {
           const legacy = loadLegacyFromLocalStorage()
           if (legacy && !isBudgetEmpty(legacy)) {
@@ -320,6 +341,10 @@ export default function Budget503020Page() {
             remote = legacy
           }
         }
+        const monthly = normalizeMonthlyPayload(remoteMonthly)
+        setMonthlyIncomeUsdt(
+          sumIncomeUsdtForMonth(monthly.incomes, budgetMonth)
+        )
         setBudget(normalizeState(remote))
         setLoadError('')
         setPersistOk(true)
@@ -367,21 +392,13 @@ export default function Budget503020Page() {
   const tWants = useMemo(() => sumGroup(budget.wants), [budget.wants])
   const tSavings = useMemo(() => sumGroup(budget.savings), [budget.savings])
   const grand = tNeeds + tWants + tSavings
-  const income = Number(budget.income) || 0
+  const income = monthlyIncomeUsdt
   const available = income - grand
   const pieBg = buildConicBackground(tNeeds, tWants, tSavings)
 
   const pN = grand > 0 ? Math.round((tNeeds / grand) * 100) : 0
   const pW = grand > 0 ? Math.round((tWants / grand) * 100) : 0
   const pS = grand > 0 ? Math.round((tSavings / grand) * 100) : 0
-
-  function setIncome(raw) {
-    const n = raw === '' ? 0 : Number(raw)
-    setBudget((prev) => ({
-      ...prev,
-      income: Number.isFinite(n) && n >= 0 ? n : 0,
-    }))
-  }
 
   function addRow(key) {
     setSectionDrafts((prev) => {
@@ -453,40 +470,21 @@ export default function Budget503020Page() {
     openColorPickerForConicFraction(conicFr)
   }
 
-  const summaryAside = (incomeEditable) => (
+  const summaryAside = () => (
     <aside className={s.summary} aria-labelledby="summary-heading">
       <h2 id="summary-heading" className={s.summaryTitle}>
         Resumen
       </h2>
 
-      {incomeEditable ? (
-        <div className={s.summaryIncome}>
-          <label className={s.summaryIncomeLabel} htmlFor="budget-income">
-            Ingresos (USDT)
-          </label>
-          <input
-            id="budget-income"
-            className={`${f.input} ${f.inputAmount} ${s.summaryIncomeInput}`}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="1"
-            placeholder="0"
-            value={income ? income : ''}
-            onChange={(e) => setIncome(e.target.value)}
-            aria-describedby="budget-income-hint"
-          />
-          <p id="budget-income-hint" className={s.summaryIncomeHint}>
-            Menos total de los tres grupos.
-          </p>
-        </div>
-      ) : (
-        <div className={s.summaryIncomeReadonly}>
-          <p className={s.summaryIncomeLabel}>Ingresos (USDT)</p>
-          <p className={s.summaryIncomeValue}>{formatUsdt(income)}</p>
-          <p className={s.summaryIncomeHint}>Menos total de los tres grupos.</p>
-        </div>
-      )}
+      <div className={s.summaryIncomeReadonly}>
+        <p className={s.summaryIncomeLabel}>Ingresos (USDT)</p>
+        <p className={s.summaryIncomeValue}>{formatUsdt(income)}</p>
+        <p className={s.summaryIncomeHint}>
+          Total de la sección Ingresos en{' '}
+          {monthLabel(budgetMonth)}. Menos la suma de los tres grupos del
+          presupuesto.
+        </p>
+      </div>
 
       <p className={s.summaryTotal} aria-live="polite">
         Total gastos (3 grupos):{' '}
@@ -751,7 +749,7 @@ export default function Budget503020Page() {
               )
             })}
           </div>
-          {summaryAside(anySectionEditing)}
+          {summaryAside()}
         </div>
       ) : null}
     </SettingsPageLayout>

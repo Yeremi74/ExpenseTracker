@@ -10,6 +10,7 @@ import {
   currentMonthStr,
   emptyDraftDebt,
   emptyDraftExpense,
+  emptyDraftIncome,
   isFxRatesEmpty,
   isMonthlyEmpty,
   loadLegacyMonthly,
@@ -24,10 +25,12 @@ export function useMonthlyData() {
   const [rates, setRates] = useState(() => ({ usdtBs: '', bcvUsdBs: '' }))
   const [data, setData] = useState(() => ({
     expenses: [],
+    incomes: [],
     debts: [],
   }))
   const [monthFilter, setMonthFilter] = useState(currentMonthStr)
   const [draftExpense, setDraftExpense] = useState(emptyDraftExpense)
+  const [draftIncome, setDraftIncome] = useState(emptyDraftIncome)
   const [draftDebt, setDraftDebt] = useState(emptyDraftDebt)
   const [formError, setFormError] = useState('')
   const [ready, setReady] = useState(false)
@@ -46,11 +49,13 @@ export function useMonthlyData() {
   useEffect(() => {
     setFormError('')
     setDraftExpense(emptyDraftExpense())
+    setDraftIncome(emptyDraftIncome())
     setDraftDebt(emptyDraftDebt())
   }, [location.pathname])
 
   useEffect(() => {
     setDraftExpense(emptyDraftExpense())
+    setDraftIncome(emptyDraftIncome())
     setDraftDebt(emptyDraftDebt())
     setFormError('')
   }, [monthFilter])
@@ -72,7 +77,9 @@ export function useMonthlyData() {
           const legacyData = loadLegacyMonthly()
           if (
             legacyData &&
-            (legacyData.expenses.length > 0 || legacyData.debts.length > 0)
+            (legacyData.expenses.length > 0 ||
+              legacyData.incomes.length > 0 ||
+              legacyData.debts.length > 0)
           ) {
             dataNext = legacyData
             await putSetting('monthly', legacyData)
@@ -99,7 +106,7 @@ export function useMonthlyData() {
             (e.message || 'No se pudo cargar desde el servidor') +
               settingsLoadErrorHint
           )
-          setData({ expenses: [], debts: [] })
+          setData({ expenses: [], incomes: [], debts: [] })
           setRates({ usdtBs: '', bcvUsdBs: '' })
         }
       } finally {
@@ -133,6 +140,12 @@ export function useMonthlyData() {
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   }, [data.expenses, monthFilter])
 
+  const filteredIncomes = useMemo(() => {
+    return data.incomes
+      .filter((r) => r.date.startsWith(monthFilter))
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  }, [data.incomes, monthFilter])
+
   const filteredDebts = useMemo(() => {
     return data.debts
       .filter((r) => r.date.startsWith(monthFilter))
@@ -143,6 +156,7 @@ export function useMonthlyData() {
     setFormError('')
     const draft = rowToDraft(row, kind)
     if (kind === 'expense') setDraftExpense(draft)
+    else if (kind === 'income') setDraftIncome(draft)
     else setDraftDebt(draft)
     requestAnimationFrame(() => {
       transactionFormRef.current?.scrollIntoView({
@@ -155,6 +169,7 @@ export function useMonthlyData() {
   function cancelEdit(kind) {
     setFormError('')
     if (kind === 'expense') setDraftExpense(emptyDraftExpense())
+    else if (kind === 'income') setDraftIncome(emptyDraftIncome())
     else setDraftDebt(emptyDraftDebt())
   }
 
@@ -176,7 +191,9 @@ export function useMonthlyData() {
             ? draft.debtFlow === 'receive'
               ? 'Indica quién te debe o una referencia.'
               : 'Indica a quién debes o una referencia.'
-            : 'Indica el concepto del gasto.'
+            : kind === 'income'
+              ? 'Indica el concepto del ingreso.'
+              : 'Indica el concepto del gasto.'
         )
         return
       }
@@ -187,7 +204,7 @@ export function useMonthlyData() {
       const description =
         typeof draft.description === 'string' ? draft.description.trim() : ''
       item =
-        kind === 'expense'
+        kind === 'expense' || kind === 'income'
           ? {
               id: isEdit ? draft.editId : crypto.randomUUID(),
               concept,
@@ -220,7 +237,12 @@ export function useMonthlyData() {
       return
     }
 
-    const listKey = kind === 'expense' ? 'expenses' : 'debts'
+    const listKey =
+      kind === 'expense'
+        ? 'expenses'
+        : kind === 'income'
+          ? 'incomes'
+          : 'debts'
     const prev = dataRef.current
     const nextData = isEdit
       ? {
@@ -243,12 +265,17 @@ export function useMonthlyData() {
         isEdit
           ? kind === 'expense'
             ? 'Se ha actualizado el gasto.'
-            : 'Se ha actualizado el registro de deuda.'
+            : kind === 'income'
+              ? 'Se ha actualizado el ingreso.'
+              : 'Se ha actualizado el registro de deuda.'
           : kind === 'expense'
             ? 'Se ha guardado el gasto.'
-            : 'Se ha guardado el registro de deuda.'
+            : kind === 'income'
+              ? 'Se ha guardado el ingreso.'
+              : 'Se ha guardado el registro de deuda.'
       )
       if (kind === 'expense') setDraft(emptyDraftExpense())
+      else if (kind === 'income') setDraft(emptyDraftIncome())
       else setDraft(emptyDraftDebt())
     } catch (e) {
       window.alert(e.message || 'No se pudo guardar en el servidor.')
@@ -258,7 +285,12 @@ export function useMonthlyData() {
   }
 
   async function removeItem(kind, id) {
-    const key = kind === 'expense' ? 'expenses' : 'debts'
+    const key =
+      kind === 'expense'
+        ? 'expenses'
+        : kind === 'income'
+          ? 'incomes'
+          : 'debts'
     const prev = dataRef.current
     const nextData = {
       ...prev,
@@ -268,6 +300,8 @@ export function useMonthlyData() {
     setPendingRemove({ kind, id })
     if (kind === 'expense') {
       setDraftExpense((d) => (d.editId === id ? emptyDraftExpense() : d))
+    } else if (kind === 'income') {
+      setDraftIncome((d) => (d.editId === id ? emptyDraftIncome() : d))
     } else {
       setDraftDebt((d) => (d.editId === id ? emptyDraftDebt() : d))
     }
@@ -294,6 +328,7 @@ export function useMonthlyData() {
     )
 
   const totalsExp = sumTriple(filteredExpenses)
+  const totalsInc = sumTriple(filteredIncomes)
   const totalsDebt = sumTriple(filteredDebts)
   const totalsDebtPay = useMemo(
     () => sumTriple(filteredDebts.filter((r) => r.debtFlow !== 'receive')),
@@ -312,6 +347,8 @@ export function useMonthlyData() {
     setMonthFilter,
     draftExpense,
     setDraftExpense,
+    draftIncome,
+    setDraftIncome,
     draftDebt,
     setDraftDebt,
     formError,
@@ -323,8 +360,10 @@ export function useMonthlyData() {
     pendingRemove,
     ratesSyncing,
     filteredExpenses,
+    filteredIncomes,
     filteredDebts,
     totalsExp,
+    totalsInc,
     totalsDebt,
     totalsDebtPay,
     totalsDebtReceive,

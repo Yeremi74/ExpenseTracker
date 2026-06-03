@@ -53,7 +53,11 @@ export function TransactionTable({
   totalsReceive,
 }) {
   const primaryLabel =
-    variant === 'debt' ? 'Persona / referencia' : 'Concepto'
+    variant === 'debt'
+      ? 'Persona / referencia'
+      : variant === 'income'
+        ? 'Concepto / origen'
+        : 'Concepto'
 
   if (rows.length === 0) {
     const isDebtEmpty = variant === 'debt'
@@ -272,7 +276,9 @@ export function TransactionForm({
       ? draft.debtFlow === 'receive'
         ? 'Quién te debe / referencia'
         : 'A quién debes / referencia'
-      : 'Concepto / qué compraste'
+      : variant === 'income'
+        ? 'Concepto / de dónde viene'
+        : 'Concepto / qué compraste'
 
   return (
     <form

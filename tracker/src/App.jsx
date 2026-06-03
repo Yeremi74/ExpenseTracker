@@ -10,6 +10,7 @@ import AppShell from './components/AppShell/AppShell.jsx'
 import Budget503020Page from './pages/Budget503020/Budget503020.jsx'
 import MonthlyDebtsPage from './pages/Monthly/MonthlyDebts.jsx'
 import MonthlyExpensesPage from './pages/Monthly/MonthlyExpenses.jsx'
+import MonthlyIncomesPage from './pages/Monthly/MonthlyIncomes.jsx'
 import MonthlyLayout from './pages/Monthly/MonthlyLayout.jsx'
 import WishlistPage from './pages/Wishlist/Wishlist.jsx'
 import ProfilePage from './pages/Profile/Profile.jsx'
@@ -70,9 +71,11 @@ export default function App() {
           <Route index element={<Budget503020Page />} />
           <Route element={<MonthlyLayout />}>
             <Route path="expenses" element={<MonthlyExpensesPage />} />
+            <Route path="incomes" element={<MonthlyIncomesPage />} />
             <Route path="debts" element={<MonthlyDebtsPage />} />
           </Route>
           <Route path="gastos" element={<Navigate to="/expenses" replace />} />
+          <Route path="ingresos" element={<Navigate to="/incomes" replace />} />
           <Route path="deudas" element={<Navigate to="/debts" replace />} />
           <Route path="mensual" element={<Navigate to="/expenses" replace />} />
           <Route path="monthly" element={<Navigate to="/expenses" replace />} />

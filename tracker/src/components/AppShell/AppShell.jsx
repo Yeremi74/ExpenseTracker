@@ -133,6 +133,12 @@ export default function AppShell() {
               Gastos
             </NavLink>
             <NavLink
+              to="/incomes"
+              className={({ isActive }) => navLinkClassName(isActive, styles)}
+            >
+              Ingresos
+            </NavLink>
+            <NavLink
               to="/debts"
               className={({ isActive }) => navLinkClassName(isActive, styles)}
             >
@@ -219,6 +225,13 @@ export default function AppShell() {
                 onClick={() => setMenuOpen(false)}
               >
                 Gastos
+              </NavLink>
+              <NavLink
+                to="/incomes"
+                className={({ isActive }) => navLinkClassName(isActive, styles)}
+                onClick={() => setMenuOpen(false)}
+              >
+                Ingresos
               </NavLink>
               <NavLink
                 to="/debts"

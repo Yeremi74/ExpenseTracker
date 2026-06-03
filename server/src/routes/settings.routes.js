@@ -14,7 +14,7 @@ function defaultFor(key) {
     case "budget":
       return { needs: [], wants: [], savings: [], income: 0 };
     case "monthly":
-      return { expenses: [], debts: [] };
+      return { expenses: [], incomes: [], debts: [] };
     case "wishlist":
       return { personal: [], home: [] };
     case "fx_rates":
