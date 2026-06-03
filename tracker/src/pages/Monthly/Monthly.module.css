@@ -34,7 +34,7 @@
 
 .fxPanelGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 14px;
 }
 
@@ -109,6 +109,8 @@
   border-radius: 12px;
   padding: 18px clamp(14px, 3vw, 18px) 22px;
   box-shadow: var(--shadow);
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .monthlyBlockTitle {
@@ -137,20 +139,16 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
   margin-bottom: 16px;
-  margin-inline: max(0px, -4px);
-  padding-inline: 4px;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  max-width: 100%;
 }
 
 .monthlyTable {
   width: 100%;
-  min-width: 520px;
   border-collapse: collapse;
   font-size: 0.88rem;
   text-align: left;
+  table-layout: fixed;
 }
 
 .monthlyTable th,
@@ -191,8 +189,20 @@
 
 .tableDesc {
   color: var(--text);
-  max-width: 14rem;
   word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tableColAmount {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tableColAction {
+  width: 2.5rem;
+  padding-inline: 4px !important;
+  text-align: center;
 }
 
 .debtBadge {
@@ -342,14 +352,35 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .tableColDesc {
+    display: none;
+  }
+
   .monthlyTable {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .monthlyTable th,
   .monthlyTable td {
-    padding: 8px 6px;
+    padding: 8px 4px;
+  }
+
+  .tableColAction button {
+    width: 30px;
+    height: 30px;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .monthlyTable {
+    font-size: 0.75rem;
+  }
+
+  .monthlyTable th,
+  .monthlyTable td {
+    padding: 7px 3px;
   }
 
   .monthlyTotalsInline {

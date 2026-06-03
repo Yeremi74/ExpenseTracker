@@ -1,3 +1,4 @@
+import { DecimalNumberInput } from '../../components/DecimalNumberInput/DecimalNumberInput.jsx'
 import f from '../../styles/forms.module.css'
 import { UNITS } from './monthlyModel.js'
 import s from './Monthly.module.css'
@@ -94,12 +95,22 @@ export function TransactionTable({
               <th scope="col">Tipo</th>
             ) : null}
             <th scope="col">{primaryLabel}</th>
-            <th scope="col">Descripción</th>
+            <th scope="col" className={s.tableColDesc}>
+              Descripción
+            </th>
             <th scope="col">Fecha</th>
-            <th scope="col">Bs</th>
-            <th scope="col">USDT</th>
-            <th scope="col">USD BCV</th>
-            <th scope="col"><span className="sr-only">Quitar</span></th>
+            <th scope="col" className={s.tableColAmount}>
+              Bs
+            </th>
+            <th scope="col" className={s.tableColAmount}>
+              USDT
+            </th>
+            <th scope="col" className={s.tableColAmount}>
+              USD BCV
+            </th>
+            <th scope="col" className={s.tableColAction}>
+              <span className="sr-only">Quitar</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -136,14 +147,14 @@ export function TransactionTable({
                 </td>
               ) : null}
               <td>{r.concept}</td>
-              <td className={s.tableDesc}>
+              <td className={`${s.tableDesc} ${s.tableColDesc}`}>
                 {r.description ? r.description : '—'}
               </td>
               <td>{r.date}</td>
-              <td>{formatBs(r.bs)}</td>
-              <td>{formatUsdt(r.usdt)}</td>
-              <td>{formatUsd(r.usdBcv)}</td>
-              <td>
+              <td className={s.tableColAmount}>{formatBs(r.bs)}</td>
+              <td className={s.tableColAmount}>{formatUsdt(r.usdt)}</td>
+              <td className={s.tableColAmount}>{formatUsd(r.usdBcv)}</td>
+              <td className={s.tableColAction}>
                 <button
                   type="button"
                   className={`${f.btnRemove} ${f.btnRemoveTable}`}
@@ -171,19 +182,29 @@ export function TransactionTable({
                 <td colSpan={isDebt ? 4 : 3}>
                   <strong>Subtotal debo pagar</strong>
                 </td>
-                <td>{formatBs(totalsPay.bs)}</td>
-                <td>{formatUsdt(totalsPay.usdt)}</td>
-                <td>{formatUsd(totalsPay.usdBcv)}</td>
-                <td />
+                <td className={s.tableColAmount}>{formatBs(totalsPay.bs)}</td>
+                <td className={s.tableColAmount}>
+                  {formatUsdt(totalsPay.usdt)}
+                </td>
+                <td className={s.tableColAmount}>
+                  {formatUsd(totalsPay.usdBcv)}
+                </td>
+                <td className={s.tableColAction} />
               </tr>
               <tr className={s.subtotalRow}>
                 <td colSpan={isDebt ? 4 : 3}>
                   <strong>Subtotal me deben</strong>
                 </td>
-                <td>{formatBs(totalsReceive.bs)}</td>
-                <td>{formatUsdt(totalsReceive.usdt)}</td>
-                <td>{formatUsd(totalsReceive.usdBcv)}</td>
-                <td />
+                <td className={s.tableColAmount}>
+                  {formatBs(totalsReceive.bs)}
+                </td>
+                <td className={s.tableColAmount}>
+                  {formatUsdt(totalsReceive.usdt)}
+                </td>
+                <td className={s.tableColAmount}>
+                  {formatUsd(totalsReceive.usdBcv)}
+                </td>
+                <td className={s.tableColAction} />
               </tr>
             </>
           ) : null}
@@ -196,26 +217,36 @@ export function TransactionTable({
                   para cubrir lo que debes.
                 </span>
               </td>
-              <td className={balanceToneClass(debtNet.bs)}>
+              <td
+                className={`${s.tableColAmount} ${balanceToneClass(debtNet.bs)}`}
+              >
                 {formatBs(debtNet.bs)}
               </td>
-              <td className={balanceToneClass(debtNet.usdt)}>
+              <td
+                className={`${s.tableColAmount} ${balanceToneClass(debtNet.usdt)}`}
+              >
                 {formatUsdt(debtNet.usdt)}
               </td>
-              <td className={balanceToneClass(debtNet.usdBcv)}>
+              <td
+                className={`${s.tableColAmount} ${balanceToneClass(debtNet.usdBcv)}`}
+              >
                 {formatUsd(debtNet.usdBcv)}
               </td>
-              <td />
+              <td className={s.tableColAction} />
             </tr>
           ) : (
             <tr>
               <td colSpan={isDebt ? 4 : 3}>
                 <strong>Total</strong>
               </td>
-              <td>{formatBs(totals.bs)}</td>
-              <td>{formatUsdt(totals.usdt)}</td>
-              <td>{formatUsd(totals.usdBcv)}</td>
-              <td />
+              <td className={s.tableColAmount}>{formatBs(totals.bs)}</td>
+              <td className={s.tableColAmount}>
+                {formatUsdt(totals.usdt)}
+              </td>
+              <td className={s.tableColAmount}>
+                {formatUsd(totals.usdBcv)}
+              </td>
+              <td className={s.tableColAction} />
             </tr>
           )}
         </tfoot>
@@ -317,15 +348,12 @@ export function TransactionForm({
         </label>
         <label className={s.monthlyFormField}>
           <span className={s.monthlyFormLabel}>Importe</span>
-          <input
+          <DecimalNumberInput
             className={f.input}
-            type="number"
-            inputMode="decimal"
             min={0}
-            step="1"
             value={draft.amount}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, amount: e.target.value }))
+            onChange={(amount) =>
+              setDraft((d) => ({ ...d, amount }))
             }
             required
           />
