@@ -349,6 +349,14 @@
   color: #86efac;
 }
 
+.summaryAvailableHint {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 140%;
+  color: var(--text);
+}
+
 .summaryTotalNum {
   display: block;
   margin-top: 8px;

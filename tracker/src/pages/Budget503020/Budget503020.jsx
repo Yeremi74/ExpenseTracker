@@ -157,8 +157,8 @@ function monthLabel(yyyyMm) {
   return d.toLocaleDateString('es', { month: 'long', year: 'numeric' })
 }
 
-function sumIncomeUsdtForMonth(incomes, month) {
-  return incomes
+function sumUsdtForMonth(rows, month) {
+  return rows
     .filter((r) => r.date.startsWith(month))
     .reduce((acc, r) => acc + (Number(r.usdt) || 0), 0)
 }
@@ -269,6 +269,7 @@ export default function Budget503020Page() {
   const [sectionCommitting, setSectionCommitting] = useState(null)
   const [chartColors, setChartColors] = useState(loadChartColors)
   const [monthlyIncomeUsdt, setMonthlyIncomeUsdt] = useState(0)
+  const [monthlyExpensesUsdt, setMonthlyExpensesUsdt] = useState(0)
   const budgetMonth = currentMonthStr()
   const colorPickerNeedsRef = useRef(null)
   const colorPickerWantsRef = useRef(null)
@@ -342,9 +343,8 @@ export default function Budget503020Page() {
           }
         }
         const monthly = normalizeMonthlyPayload(remoteMonthly)
-        setMonthlyIncomeUsdt(
-          sumIncomeUsdtForMonth(monthly.incomes, budgetMonth)
-        )
+        setMonthlyIncomeUsdt(sumUsdtForMonth(monthly.incomes, budgetMonth))
+        setMonthlyExpensesUsdt(sumUsdtForMonth(monthly.expenses, budgetMonth))
         setBudget(normalizeState(remote))
         setLoadError('')
         setPersistOk(true)
@@ -393,7 +393,7 @@ export default function Budget503020Page() {
   const tSavings = useMemo(() => sumGroup(budget.savings), [budget.savings])
   const grand = tNeeds + tWants + tSavings
   const income = monthlyIncomeUsdt
-  const available = income - grand
+  const available = income - grand - monthlyExpensesUsdt
   const pieBg = buildConicBackground(tNeeds, tWants, tSavings)
 
   const pN = grand > 0 ? Math.round((tNeeds / grand) * 100) : 0
@@ -480,15 +480,20 @@ export default function Budget503020Page() {
         <p className={s.summaryIncomeLabel}>Ingresos (USDT)</p>
         <p className={s.summaryIncomeValue}>{formatUsdt(income)}</p>
         <p className={s.summaryIncomeHint}>
-          Total de la sección Ingresos en{' '}
-          {monthLabel(budgetMonth)}. Menos la suma de los tres grupos del
-          presupuesto.
+          Total de la sección Ingresos en {monthLabel(budgetMonth)}.
         </p>
       </div>
 
       <p className={s.summaryTotal} aria-live="polite">
-        Total gastos (3 grupos):{' '}
+        Total presupuesto (3 grupos):{' '}
         <span className={s.summaryTotalNum}>{formatUsdt(grand)}</span>
+      </p>
+
+      <p className={s.summaryTotal} aria-live="polite">
+        Total gastos (sección Gastos):{' '}
+        <span className={s.summaryTotalNum}>
+          {formatUsdt(monthlyExpensesUsdt)}
+        </span>
       </p>
 
       <p
@@ -497,6 +502,9 @@ export default function Budget503020Page() {
       >
         Disponible:{' '}
         <span className={s.summaryAvailableNum}>{formatUsdt(available)}</span>
+        <span className={s.summaryAvailableHint}>
+          Ingresos − presupuesto − gastos del mes.
+        </span>
       </p>
 
       <div
