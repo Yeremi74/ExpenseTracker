@@ -1,0 +1,162 @@
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.filterBtnActive {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+.filtersCard {
+  margin-bottom: 1rem;
+}
+
+.panelItem {
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.5rem 0.75rem;
+}
+
+.panelItem .actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.searchField {
+  grid-column: span 2;
+}
+
+.resetBtn,
+.applyBtn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+}
+
+.resetBtn {
+  background: transparent;
+  color: var(--text);
+}
+
+.resetBtn:hover {
+  background: var(--surface-muted);
+}
+
+.applyBtn {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.applyBtn:hover {
+  background: var(--accent-soft);
+}
+
+.dayPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.dayPreviewItem {
+  display: block;
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.dayPreviewIncome {
+  background: #ecfdf5;
+  color: var(--positive);
+}
+
+.dayPreviewExpense {
+  background: #fef2f2;
+  color: var(--negative);
+}
+
+.dayPreviewDebt {
+  background: #fffbeb;
+  color: var(--warning);
+}
+
+.dayPreviewReceivable {
+  background: #ecfdf5;
+  color: var(--positive);
+}
+
+.today .dayPreviewIncome {
+  background: rgba(5, 150, 105, 0.4);
+  color: #fff;
+}
+
+.today .dayPreviewExpense {
+  background: rgba(220, 38, 38, 0.4);
+  color: #fff;
+}
+
+.today .dayPreviewDebt {
+  background: rgba(217, 119, 6, 0.45);
+  color: #fff;
+}
+
+.today .dayPreviewReceivable {
+  background: rgba(5, 150, 105, 0.4);
+  color: #fff;
+}
+
+.panelSection + .panelSection {
+  margin-top: 1.25rem;
+}
+
+.panelSectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badgeDebt {
+  background: #fffbeb;
+  color: var(--warning);
+}
+
+.dayPreviewMore {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 0.25rem;
+}
+
+.today .dayPreviewMore {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 768px) {
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchField {
+    grid-column: span 1;
+  }
+}

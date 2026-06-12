@@ -1,0 +1,94 @@
+.installmentRow {
+  margin-top: -0.25rem;
+}
+
+  margin-bottom: 1.5rem;
+}
+
+.debtList {
+  display: flex;
+  flex-direction: column;
+}
+
+.debtItem {
+  border-bottom: 1px solid var(--border);
+}
+
+.debtItem:last-child {
+  border-bottom: none;
+}
+
+.paymentsPanel {
+  padding: 0 0 1rem 0;
+  margin-left: 0;
+  border-top: 1px dashed var(--border);
+  padding-top: 1rem;
+}
+
+.paymentForm {
+  margin-bottom: 1rem;
+}
+
+.paymentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.paymentRow {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.paymentAmount {
+  font-family: var(--mono);
+  color: var(--positive);
+}
+
+.paymentNote {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.progressBar {
+  margin-top: 0.5rem;
+  height: 3px;
+  background: var(--surface-muted);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.directionBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.directionPayable {
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+
+.directionReceivable {
+  background: color-mix(in srgb, var(--positive) 15%, transparent);
+  color: var(--positive);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--warning);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.progressFillReceivable {
+  background: var(--positive);
+}

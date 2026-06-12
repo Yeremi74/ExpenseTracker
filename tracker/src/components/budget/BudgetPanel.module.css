@@ -1,0 +1,50 @@
+.title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.form {
+  margin-bottom: 1rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.name {
+  font-size: 0.875rem;
+  color: var(--text-h);
+}
+
+.amount {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+}
+
+.remove {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius);
+}
+
+.remove:hover {
+  color: var(--negative);
+  background: #fef2f2;
+}

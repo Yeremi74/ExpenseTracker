@@ -1,91 +1,27 @@
-import {
-  Navigate,
-  Outlet,
-  Route,
-  Routes,
-} from 'react-router-dom'
-import { useAuth } from './context/AuthContext.jsx'
-import AuthSessionLoading from './components/AuthSessionLoading/AuthSessionLoading.jsx'
-import AppShell from './components/AppShell/AppShell.jsx'
-import Budget503020Page from './pages/Budget503020/Budget503020.jsx'
-import MonthlyDebtsPage from './pages/Monthly/MonthlyDebts.jsx'
-import MonthlyExpensesPage from './pages/Monthly/MonthlyExpenses.jsx'
-import MonthlyIncomesPage from './pages/Monthly/MonthlyIncomes.jsx'
-import MonthlyLayout from './pages/Monthly/MonthlyLayout.jsx'
-import WishlistPage from './pages/Wishlist/Wishlist.jsx'
-import ProfilePage from './pages/Profile/Profile.jsx'
-import LoginPage from './pages/Login/Login.jsx'
-import RegisterPage from './pages/Register/Register.jsx'
-import { passwordResetOtpEnabled } from './config/features.js'
-import PasswordResetPage from './pages/PasswordReset/PasswordReset.jsx'
-
-function GuestOnly() {
-  const { user, loading } = useAuth()
-  if (loading) {
-    return <AuthSessionLoading message="Cargando…" />
-  }
-  if (user) return <Navigate to="/" replace />
-  return <Outlet />
-}
-
-function RequireAuth() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return <AuthSessionLoading message="Cargando sesión…" />
-  }
-  if (!user) return <Navigate to="/login" replace />
-  return <Outlet />
-}
+import { Route, Routes } from 'react-router-dom'
+import Layout from './components/Layout/Layout.jsx'
+import CategoriesPage from './pages/Categories/Categories.jsx'
+import DashboardPage from './pages/Dashboard/Dashboard.jsx'
+import DebtsPage from './pages/Debts/Debts.jsx'
+import ExpensesPage from './pages/Expenses/Expenses.jsx'
+import HistoryPage from './pages/History/History.jsx'
+import IncomesPage from './pages/Incomes/Incomes.jsx'
+import RatesPage from './pages/Rates/Rates.jsx'
+import SimulatorPage from './pages/Simulator/Simulator.jsx'
 
 export default function App() {
   return (
     <Routes>
-      <Route element={<GuestOnly />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/password-reset"
-          element={
-            passwordResetOtpEnabled ? (
-              <PasswordResetPage />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route path="/registro" element={<Navigate to="/register" replace />} />
-        <Route
-          path="/recuperar-contrasena"
-          element={
-            passwordResetOtpEnabled ? (
-              <Navigate to="/password-reset" replace />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+      <Route element={<Layout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="incomes" element={<IncomesPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />
+        <Route path="history" element={<HistoryPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="debts" element={<DebtsPage />} />
+        <Route path="simulator" element={<SimulatorPage />} />
+        <Route path="rates" element={<RatesPage />} />
       </Route>
-      <Route element={<RequireAuth />}>
-        <Route element={<AppShell />}>
-          <Route index element={<Budget503020Page />} />
-          <Route element={<MonthlyLayout />}>
-            <Route path="expenses" element={<MonthlyExpensesPage />} />
-            <Route path="incomes" element={<MonthlyIncomesPage />} />
-            <Route path="debts" element={<MonthlyDebtsPage />} />
-          </Route>
-          <Route path="gastos" element={<Navigate to="/expenses" replace />} />
-          <Route path="ingresos" element={<Navigate to="/incomes" replace />} />
-          <Route path="deudas" element={<Navigate to="/debts" replace />} />
-          <Route path="mensual" element={<Navigate to="/expenses" replace />} />
-          <Route path="monthly" element={<Navigate to="/expenses" replace />} />
-          <Route path="wishlist" element={<WishlistPage />} />
-          <Route path="quiero-comprar" element={<Navigate to="/wishlist" replace />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="perfil" element={<Navigate to="/profile" replace />} />
-        </Route>
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
