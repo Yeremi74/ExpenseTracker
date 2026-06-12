@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   deleteTransaction,
   getCalendarEvents,
   getCategories,
+  getDebts,
   getTransactions,
 } from '../../api/api.js'
 import Calendar from '../../components/calendar/Calendar.jsx'
@@ -27,9 +28,46 @@ import styles from './History.module.css'
 const emptyFilters = {
   type: '',
   categoryId: '',
+  debtId: '',
   dateFrom: '',
   dateTo: '',
   search: '',
+}
+
+function getDebtFilterOptions(debts) {
+  const options = new Map()
+
+  for (const debt of debts) {
+    if (debt.installmentGroupId) {
+      if (!options.has(debt.installmentGroupId)) {
+        const baseName = debt.name.replace(/\s*\(Cuota \d+\/\d+\)$/, '').trim()
+        options.set(debt.installmentGroupId, {
+          value: debt.installmentGroupId,
+          label: baseName,
+        })
+      }
+      continue
+    }
+
+    options.set(debt.id, { value: debt.id, label: debt.name })
+  }
+
+  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'))
+}
+
+function buildDebtFilterIndex(debts) {
+  const index = new Map()
+  for (const debt of debts) {
+    index.set(debt.id, debt.installmentGroupId || debt.id)
+  }
+  return index
+}
+
+function matchesDebtFilter(event, debtId, debtFilterIndex) {
+  if (!debtId) return true
+  if (event.debtId === debtId) return true
+  const groupKey = debtFilterIndex.get(event.debtId)
+  return groupKey === debtId
 }
 
 function getCalendarQuery(year, month, filters) {
@@ -98,14 +136,16 @@ export default function HistoryPage() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
   const [monthTransactions, setMonthTransactions] = useState([])
-  const [monthDebts, setMonthDebts] = useState([])
+  const [monthDebtEvents, setMonthDebtEvents] = useState([])
   const [categories, setCategories] = useState([])
+  const [debts, setDebts] = useState([])
   const [filters, setFilters] = useState(emptyFilters)
   const [applied, setApplied] = useState(emptyFilters)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
+    getDebts().then(setDebts).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -113,7 +153,7 @@ export default function HistoryPage() {
     Promise.all([getTransactions(query), getCalendarEvents(calendarYear, calendarMonth)])
       .then(([transactions, events]) => {
         setMonthTransactions(transactions)
-        setMonthDebts(events.filter((event) => event.source === 'debt'))
+        setMonthDebtEvents(events.filter((event) => event.source === 'debt'))
       })
       .catch((err) => setError(err.message))
   }, [calendarYear, calendarMonth, applied])
@@ -146,6 +186,12 @@ export default function HistoryPage() {
   }
 
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]))
+  const debtFilterOptions = getDebtFilterOptions(debts)
+  const debtFilterIndex = useMemo(() => buildDebtFilterIndex(debts), [debts])
+  const monthDebts = useMemo(
+    () => monthDebtEvents.filter((event) => matchesDebtFilter(event, applied.debtId, debtFilterIndex)),
+    [monthDebtEvents, applied.debtId, debtFilterIndex]
+  )
   const transactionsByDay = groupItemsByDay(monthTransactions, calendarYear, calendarMonth)
   const debtsByDay = groupEventsByDay(monthDebts, calendarYear, calendarMonth)
   const selectedKey = selectedDay
@@ -200,6 +246,20 @@ export default function HistoryPage() {
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={formStyles.field}>
+                <label className={formStyles.label}>Deuda</label>
+                <select
+                  value={filters.debtId}
+                  onChange={(e) => setFilters({ ...filters, debtId: e.target.value })}
+                >
+                  <option value="">Todas</option>
+                  {debtFilterOptions.map((debt) => (
+                    <option key={debt.value} value={debt.value}>
+                      {debt.label}
                     </option>
                   ))}
                 </select>

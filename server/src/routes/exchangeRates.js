@@ -1,7 +1,17 @@
 const express = require("express");
 const { getDb } = require("../config/database");
+const { fetchLiveRates } = require("../services/cotizave");
 
 const router = express.Router();
+
+router.get("/live", async (_req, res) => {
+  try {
+    const rates = await fetchLiveRates();
+    res.json(rates);
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Failed to fetch live rates" });
+  }
+});
 
 router.get("/", async (_req, res) => {
   try {

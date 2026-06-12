@@ -158,6 +158,10 @@ export function getExchangeRates() {
   return apiFetch('/api/exchange-rates').then(parseResponse)
 }
 
+export function fetchLiveRates() {
+  return apiFetch('/api/exchange-rates/live').then(parseResponse)
+}
+
 export function updateExchangeRates(body) {
   return apiFetch('/api/exchange-rates', {
     method: 'PUT',
