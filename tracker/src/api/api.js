@@ -29,6 +29,18 @@ export function getDashboardAlerts() {
   return apiFetch('/api/dashboard/alerts').then(parseResponse)
 }
 
+export function getDashboardTrends(months = 6) {
+  return apiFetch(`/api/dashboard/trends?months=${months}`).then(parseResponse)
+}
+
+export function getDashboardExpensesByCategory() {
+  return apiFetch('/api/dashboard/expenses-by-category').then(parseResponse)
+}
+
+export function getDashboardRecent(limit = 5) {
+  return apiFetch(`/api/dashboard/recent?limit=${limit}`).then(parseResponse)
+}
+
 export function getCategories(type) {
   const params = type ? `?filter[type]=${type}` : ''
   return apiFetch(`/api/categories${params}`).then(parseResponse)

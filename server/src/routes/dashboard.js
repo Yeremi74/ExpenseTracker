@@ -2,8 +2,24 @@ const express = require("express");
 const { getDb } = require("../config/database");
 const { getExchangeRates, convertToVes } = require("../utils/currency");
 const { utcMonthRange } = require("../utils/date");
+const { serializeDoc } = require("../utils/mongo");
 
 const router = express.Router();
+
+const MONTH_LABELS = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
 
 function currentMonthRange() {
   const now = new Date();
@@ -204,6 +220,118 @@ router.get("/alerts", async (_req, res) => {
     });
 
     res.json(alerts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/trends", async (req, res) => {
+  try {
+    const months = Math.min(Math.max(parseInt(req.query.months, 10) || 6, 1), 12);
+    const db = getDb();
+    const rates = await getExchangeRates(db);
+    const transactions = await db.collection("transactions").find({}).toArray();
+    const now = new Date();
+    const currentYear = now.getUTCFullYear();
+
+    const periods = [];
+    for (let offset = months - 1; offset >= 0; offset -= 1) {
+      const date = new Date(Date.UTC(currentYear, now.getUTCMonth() - offset, 1));
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      const range = utcMonthRange(year, month);
+      const income = sumTransactions(transactions, rates, "income", range);
+      const expenses = sumTransactions(transactions, rates, "expense", range);
+
+      periods.push({
+        year,
+        month,
+        label: year === currentYear ? MONTH_LABELS[month - 1] : `${MONTH_LABELS[month - 1]} ${year}`,
+        income,
+        expenses,
+        net: income - expenses,
+      });
+    }
+
+    res.json({ periods, baseCurrency: "ves" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/expenses-by-category", async (_req, res) => {
+  try {
+    const db = getDb();
+    const rates = await getExchangeRates(db);
+    const { start, end } = currentMonthRange();
+
+    const [transactions, categories] = await Promise.all([
+      db
+        .collection("transactions")
+        .find({ type: "expense", date: { $gte: start, $lte: end } })
+        .toArray(),
+      db.collection("categories").find({ type: "expense" }).toArray(),
+    ]);
+
+    const categoryMap = Object.fromEntries(
+      categories.map((category) => [category._id.toString(), category.name])
+    );
+    const amounts = {};
+
+    for (const tx of transactions) {
+      const key = tx.categoryId?.toString() ?? "uncategorized";
+      const converted = convertToVes(tx.amount, tx.currency || "ves", rates);
+      amounts[key] = (amounts[key] ?? 0) + converted;
+    }
+
+    const total = Object.values(amounts).reduce((sum, value) => sum + value, 0);
+    const items = Object.entries(amounts)
+      .map(([categoryId, amount]) => ({
+        categoryId: categoryId === "uncategorized" ? null : categoryId,
+        name: categoryMap[categoryId] || "Sin categoría",
+        amount,
+        percentage: total > 0 ? amount / total : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    res.json({ items, total, baseCurrency: "ves" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/recent", async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 20);
+    const db = getDb();
+    const rates = await getExchangeRates(db);
+
+    const [transactions, categories] = await Promise.all([
+      db
+        .collection("transactions")
+        .find({})
+        .sort({ date: -1, createdAt: -1 })
+        .limit(limit)
+        .toArray(),
+      db.collection("categories").find({}).toArray(),
+    ]);
+
+    const categoryMap = Object.fromEntries(
+      categories.map((category) => [category._id.toString(), category.name])
+    );
+
+    res.json(
+      transactions.map((doc) => {
+        const serialized = serializeDoc(doc);
+        const categoryId = serialized.categoryId?.toString?.() ?? serialized.categoryId;
+        return {
+          ...serialized,
+          categoryId,
+          categoryName: categoryMap[categoryId] || "Sin categoría",
+          amountVes: convertToVes(doc.amount, doc.currency || "ves", rates),
+        };
+      })
+    );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

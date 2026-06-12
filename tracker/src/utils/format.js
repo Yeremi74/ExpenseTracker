@@ -18,6 +18,17 @@ export function formatCurrency(value) {
   return formatAmount(value, 'ves')
 }
 
+export function formatChartAmount(value) {
+  const n = Math.abs(value ?? 0)
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return numberFormat.format(n)
+}
+
+export function formatPercent(value, digits = 0) {
+  return `${(value ?? 0).toFixed(digits)}%`
+}
+
 export function formatCurrencyShort(currency) {
   return CURRENCY_LABELS[currency] || currency
 }
