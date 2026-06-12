@@ -94,3 +94,14 @@
 .progressFillReceivable {
   background: var(--positive);
 }
+
+@media (max-width: 768px) {
+  .paymentRow {
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .paymentNote {
+    grid-column: 1 / -1;
+  }
+}

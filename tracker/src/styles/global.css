@@ -48,6 +48,9 @@ body {
 
 #root {
   min-height: 100svh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 h1,

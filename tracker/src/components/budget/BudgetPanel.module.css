@@ -48,3 +48,15 @@
   color: var(--negative);
   background: #fef2f2;
 }
+
+@media (max-width: 768px) {
+  .item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .remove {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

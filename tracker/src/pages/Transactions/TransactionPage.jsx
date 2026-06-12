@@ -12,10 +12,10 @@ import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
 import CurrencySelect from '../../components/ui/CurrencySelect.jsx'
+import FormSheet from '../../components/ui/FormSheet.jsx'
 import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { formatAmount, formatDate, toInputDate, todayInputDate } from '../../utils/format.js'
-import styles from './TransactionPage.module.css'
 
 const config = {
   income: {
@@ -153,7 +153,11 @@ export default function TransactionPage({ type }) {
       {error && !showForm && <p className={formStyles.error}>{error}</p>}
 
       {showForm && (
-        <Card className={styles.formCard}>
+        <FormSheet
+          open={showForm}
+          onClose={closeForm}
+          title={editingId ? `Editar ${type === 'income' ? 'ingreso' : 'gasto'}` : cfg.createLabel}
+        >
           <form className={formStyles.form} onSubmit={handleSubmit}>
             <div className={formStyles.field}>
               <label className={formStyles.label}>Título</label>
@@ -230,7 +234,7 @@ export default function TransactionPage({ type }) {
               </Button>
             </div>
           </form>
-        </Card>
+        </FormSheet>
       )}
 
       <Card>

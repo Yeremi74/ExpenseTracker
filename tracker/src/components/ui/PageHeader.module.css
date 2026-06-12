@@ -19,3 +19,24 @@
 .action {
   flex-shrink: 0;
 }
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .action {
+    width: 100%;
+  }
+
+  .action > * {
+    width: 100%;
+  }
+}

@@ -10,6 +10,7 @@ import listStyles from '../../components/lists/List.module.css'
 import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
+import FormSheet from '../../components/ui/FormSheet.jsx'
 import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import styles from './Categories.module.css'
@@ -102,7 +103,11 @@ export default function CategoriesPage() {
       {error && !showForm && <p className={formStyles.error}>{error}</p>}
 
       {showForm && (
-        <Card className={styles.formCard}>
+        <FormSheet
+          open={showForm}
+          onClose={closeForm}
+          title={editingId ? 'Editar categoría' : 'Nueva categoría'}
+        >
           <form className={formStyles.form} onSubmit={handleSubmit}>
             <div className={formStyles.row}>
               <div className={formStyles.field}>
@@ -135,7 +140,7 @@ export default function CategoriesPage() {
               </Button>
             </div>
           </form>
-        </Card>
+        </FormSheet>
       )}
 
       <div className={styles.sections}>
