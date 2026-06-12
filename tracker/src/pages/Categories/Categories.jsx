@@ -10,6 +10,7 @@ import listStyles from '../../components/lists/List.module.css'
 import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
+import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import styles from './Categories.module.css'
 
@@ -169,20 +170,18 @@ function CategorySection({ title, categories, onEdit, onDelete }) {
                 <span className={listStyles.name}>{category.name}</span>
               </div>
               <div className={listStyles.actions}>
-                <button
-                  type="button"
-                  className={listStyles.iconBtn}
+                <IconButton
+                  icon="edit"
+                  label="Editar"
+                  variant="edit"
                   onClick={() => onEdit(category)}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className={`${listStyles.iconBtn} ${listStyles.iconBtnDanger}`}
+                />
+                <IconButton
+                  icon="trash"
+                  label="Eliminar"
+                  variant="danger"
                   onClick={() => onDelete(category.id)}
-                >
-                  Eliminar
-                </button>
+                />
               </div>
             </div>
           ))}

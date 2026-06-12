@@ -7,8 +7,8 @@
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 1rem;
-  padding: 0.875rem 0;
+  gap: 1rem 1.25rem;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -24,7 +24,7 @@
 }
 
 .name {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-h);
   white-space: nowrap;
@@ -39,9 +39,11 @@
 
 .amount {
   font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1.25rem;
+  font-weight: 600;
   white-space: nowrap;
+  text-align: right;
+  line-height: 1.2;
 }
 
 .amountPositive {
@@ -58,25 +60,8 @@
 
 .actions {
   display: flex;
-  gap: 0.25rem;
-}
-
-.iconBtn {
-  padding: 0.25rem 0.5rem;
-  background: transparent;
-  border: none;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  border-radius: var(--radius);
-}
-
-.iconBtn:hover {
-  background: var(--surface-muted);
-  color: var(--text-h);
-}
-
-.iconBtnDanger:hover {
-  color: var(--negative);
+  gap: 0.125rem;
+  align-items: center;
 }
 
 .badge {

@@ -11,6 +11,7 @@ import listStyles from '../../components/lists/List.module.css'
 import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
+import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import SidePanel from '../../components/ui/SidePanel.jsx'
 import {
@@ -344,13 +345,12 @@ export default function HistoryPage() {
                         {tx.type === 'income' ? 'Ingreso' : 'Gasto'}
                       </span>
                       <div className={listStyles.actions}>
-                        <button
-                          type="button"
-                          className={`${listStyles.iconBtn} ${listStyles.iconBtnDanger}`}
+                        <IconButton
+                          icon="trash"
+                          label="Eliminar"
+                          variant="danger"
                           onClick={() => handleDelete(tx.id)}
-                        >
-                          Eliminar
-                        </button>
+                        />
                       </div>
                     </div>
                   ))}

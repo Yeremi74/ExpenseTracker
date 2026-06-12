@@ -17,7 +17,7 @@
   --negative: #dc2626;
   --warning: #d97706;
 
-  --mono: 'IBM Plex Mono', 'Consolas', monospace;
+  --mono: 'IBM Plex Sans', system-ui, sans-serif;
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
 
   --radius: 6px;
@@ -43,6 +43,7 @@ html {
 
 body {
   margin: 0;
+  font-family: var(--sans);
 }
 
 #root {

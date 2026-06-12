@@ -1,0 +1,37 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.button:hover {
+  background: var(--surface-muted);
+  color: var(--text-h);
+}
+
+.edit {
+  color: var(--text-h);
+}
+
+.edit:hover {
+  background: var(--surface-muted);
+  color: var(--text-h);
+}
+
+.danger {
+  color: var(--negative);
+}
+
+.danger:hover {
+  background: #fef2f2;
+  color: var(--negative);
+}

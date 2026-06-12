@@ -12,6 +12,7 @@ import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
 import CurrencySelect from '../../components/ui/CurrencySelect.jsx'
+import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { formatAmount, formatDate, toInputDate, todayInputDate } from '../../utils/format.js'
 import styles from './TransactionPage.module.css'
@@ -254,20 +255,18 @@ export default function TransactionPage({ type }) {
                   {formatAmount(tx.amount, tx.currency || 'ves')}
                 </span>
                 <div className={listStyles.actions}>
-                  <button
-                    type="button"
-                    className={listStyles.iconBtn}
+                  <IconButton
+                    icon="edit"
+                    label="Editar"
+                    variant="edit"
                     onClick={() => openEdit(tx)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    className={`${listStyles.iconBtn} ${listStyles.iconBtnDanger}`}
+                  />
+                  <IconButton
+                    icon="trash"
+                    label="Eliminar"
+                    variant="danger"
                     onClick={() => handleDelete(tx.id)}
-                  >
-                    Eliminar
-                  </button>
+                  />
                 </div>
               </div>
             ))}

@@ -14,6 +14,7 @@ import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import EmptyState from '../../components/ui/EmptyState.jsx'
 import CurrencySelect from '../../components/ui/CurrencySelect.jsx'
+import IconButton from '../../components/ui/IconButton.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { formatAmount, formatDate, toInputDate, todayInputDate } from '../../utils/format.js'
 import styles from './Debts.module.css'
@@ -406,27 +407,23 @@ export default function DebtsPage() {
                       {formatAmount(remaining, debt.currency)}
                     </span>
                     <div className={listStyles.actions}>
-                      <button
-                        type="button"
-                        className={listStyles.iconBtn}
+                      <IconButton
+                        icon={isExpanded ? 'chevronUp' : 'receipt'}
+                        label={isExpanded ? 'Cerrar' : direction.paymentsLabel}
                         onClick={() => togglePayments(debt.id)}
-                      >
-                        {isExpanded ? 'Cerrar' : direction.paymentsLabel}
-                      </button>
-                      <button
-                        type="button"
-                        className={listStyles.iconBtn}
+                      />
+                      <IconButton
+                        icon="edit"
+                        label="Editar"
+                        variant="edit"
                         onClick={() => openEdit(debt)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className={`${listStyles.iconBtn} ${listStyles.iconBtnDanger}`}
+                      />
+                      <IconButton
+                        icon="trash"
+                        label="Eliminar"
+                        variant="danger"
                         onClick={() => handleDelete(debt.id)}
-                      >
-                        Eliminar
-                      </button>
+                      />
                     </div>
                   </div>
 
@@ -495,13 +492,12 @@ export default function DebtsPage() {
                               <span className={styles.paymentNote}>
                                 {payment.note || '—'}
                               </span>
-                              <button
-                                type="button"
-                                className={listStyles.iconBtn}
+                              <IconButton
+                                icon="trash"
+                                label="Eliminar pago"
+                                variant="danger"
                                 onClick={() => handleDeletePayment(debt.id, payment.id)}
-                              >
-                                Eliminar
-                              </button>
+                              />
                             </div>
                           ))}
                         </div>

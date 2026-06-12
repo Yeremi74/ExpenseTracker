@@ -1,7 +1,7 @@
 .installmentRow {
   margin-top: -0.25rem;
 }
-
+.formCard {
   margin-bottom: 1.5rem;
 }
 
@@ -46,6 +46,8 @@
 
 .paymentAmount {
   font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--positive);
 }
 
