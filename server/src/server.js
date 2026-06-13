@@ -18,19 +18,24 @@ const remindersRouter = require("./routes/reminders");
 const calendarRouter = require("./routes/calendar");
 const budgetsRouter = require("./routes/budgets");
 const exchangeRatesRouter = require("./routes/exchangeRates");
+const ensureReady = require("./middleware/ensureReady");
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "tracker-server" });
 });
 
-app.use("/api/categories", categoriesRouter);
-app.use("/api/transactions", transactionsRouter);
-app.use("/api/debts", debtsRouter);
-app.use("/api/dashboard", dashboardRouter);
-app.use("/api/reminders", remindersRouter);
-app.use("/api/calendar", calendarRouter);
-app.use("/api/budgets", budgetsRouter);
-app.use("/api/exchange-rates", exchangeRatesRouter);
+const apiRouter = express.Router();
+apiRouter.use(ensureReady);
+apiRouter.use("/categories", categoriesRouter);
+apiRouter.use("/transactions", transactionsRouter);
+apiRouter.use("/debts", debtsRouter);
+apiRouter.use("/dashboard", dashboardRouter);
+apiRouter.use("/reminders", remindersRouter);
+apiRouter.use("/calendar", calendarRouter);
+apiRouter.use("/budgets", budgetsRouter);
+apiRouter.use("/exchange-rates", exchangeRatesRouter);
+
+app.use("/api", apiRouter);
 
 async function main() {
   await connectMongo();
