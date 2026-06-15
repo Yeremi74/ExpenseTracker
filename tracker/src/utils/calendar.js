@@ -53,16 +53,42 @@ export function groupEventsByDay(events, year, month) {
   return groupItemsByDay(events, year, month)
 }
 
-export function buildDebtCalendarEvents(debts, year, month) {
+function buildDebtCalendarEvents(debts, year, month) {
   const monthRange = getMonthRange(year, month)
+  const events = []
 
-  return debts
-    .filter((debt) => {
-      if (!debt.dueDate) return false
-      const dateKey = String(debt.dueDate).slice(0, 10)
-      return dateKey >= monthRange.dateFrom && dateKey <= monthRange.dateTo
-    })
-    .map((debt) => ({
+  for (const debt of debts) {
+    if (debt.installments?.length) {
+      for (const inst of debt.installments) {
+        if (!inst.dueDate) continue
+        const dateKey = String(inst.dueDate).slice(0, 10)
+        if (dateKey < monthRange.dateFrom || dateKey > monthRange.dateTo) continue
+
+        events.push({
+          id: `${debt.id}-${inst.id}`,
+          source: 'debt',
+          title: `${debt.name} (Cuota ${inst.number}/${debt.installments.length})`,
+          amount: inst.amount - (inst.paidAmount || 0),
+          totalAmount: inst.amount,
+          currency: debt.currency || 'ves',
+          date: inst.dueDate,
+          debtId: debt.id,
+          installmentId: inst.id,
+          direction: debt.direction || 'payable',
+          installmentNumber: inst.number,
+          installmentTotal: debt.installments.length,
+          isSettled: (inst.paidAmount || 0) >= inst.amount,
+          type: 'debt',
+        })
+      }
+      continue
+    }
+
+    if (!debt.dueDate) continue
+    const dateKey = String(debt.dueDate).slice(0, 10)
+    if (dateKey < monthRange.dateFrom || dateKey > monthRange.dateTo) continue
+
+    events.push({
       id: debt.id,
       source: 'debt',
       title: debt.name,
@@ -72,11 +98,14 @@ export function buildDebtCalendarEvents(debts, year, month) {
       date: debt.dueDate,
       debtId: debt.id,
       direction: debt.direction || 'payable',
-      installmentNumber: debt.installmentNumber ?? null,
-      installmentTotal: debt.installmentTotal ?? null,
+      installmentNumber: null,
+      installmentTotal: null,
       isSettled: debt.paidAmount >= debt.totalAmount,
       type: 'debt',
-    }))
+    })
+  }
+
+  return events
 }
 
 export { WEEKDAYS, WEEKDAYS_SHORT, MONTHS, MONTHS_SHORT }

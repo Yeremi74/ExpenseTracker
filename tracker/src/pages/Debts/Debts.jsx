@@ -73,6 +73,24 @@ function isDebtSettled(debt) {
   return debt.paidAmount >= debt.totalAmount
 }
 
+function hasInstallments(debt) {
+  return Array.isArray(debt.installments) && debt.installments.length > 0
+}
+
+function isInstallmentSettled(installment) {
+  return (installment.paidAmount || 0) >= installment.amount
+}
+
+function getInstallmentStats(debt) {
+  const paidCount = debt.installments.filter(isInstallmentSettled).length
+  const nextDue = debt.installments.find((inst) => !isInstallmentSettled(inst))?.dueDate
+  return {
+    paidCount,
+    totalCount: debt.installments.length,
+    nextDue,
+  }
+}
+
 function getDebtDirection(debt) {
   return DEBT_DIRECTIONS[debt.direction] ? debt.direction : 'payable'
 }
@@ -86,6 +104,7 @@ export default function DebtsPage() {
   const [payments, setPayments] = useState([])
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm)
   const [settlingDebt, setSettlingDebt] = useState(null)
+  const [settlingInstallment, setSettlingInstallment] = useState(null)
   const [settleForm, setSettleForm] = useState(emptySettleForm)
   const [settleCategories, setSettleCategories] = useState([])
   const [error, setError] = useState(null)
@@ -196,6 +215,8 @@ export default function DebtsPage() {
     }
     setExpandedId(debtId)
     setPaymentForm(emptyPaymentForm)
+    const debt = debts.find((item) => item.id === debtId)
+    if (debt && hasInstallments(debt)) return
     try {
       const data = await getDebtPayments(debtId)
       setPayments(data)
@@ -237,23 +258,26 @@ export default function DebtsPage() {
     }
   }
 
-  async function openSettle(debt) {
+  async function openSettle(debt, installment = null) {
     const directionKey = getDebtDirection(debt)
     const categoryType = directionKey === 'receivable' ? 'income' : 'expense'
     setError(null)
     setSettleForm(emptySettleForm)
     setSettlingDebt(debt)
+    setSettlingInstallment(installment)
     try {
       const categories = await getCategories(categoryType)
       setSettleCategories(categories)
     } catch (err) {
       setError(err.message)
       setSettlingDebt(null)
+      setSettlingInstallment(null)
     }
   }
 
   function closeSettle() {
     setSettlingDebt(null)
+    setSettlingInstallment(null)
     setSettleForm(emptySettleForm)
     setSettleCategories([])
     setError(null)
@@ -268,9 +292,13 @@ export default function DebtsPage() {
       await settleDebt(settlingDebt.id, {
         date: settleForm.date,
         categoryId: settleForm.categoryId,
+        installmentId: settlingInstallment?.id,
       })
       closeSettle()
       load()
+      if (expandedId === settlingDebt.id) {
+        setExpandedId(settlingDebt.id)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -279,9 +307,14 @@ export default function DebtsPage() {
   }
 
   const settlingDirection = settlingDebt ? DEBT_DIRECTIONS[getDebtDirection(settlingDebt)] : null
-  const settlingRemaining = settlingDebt
-    ? settlingDebt.totalAmount - settlingDebt.paidAmount
-    : 0
+  const settlingRemaining = settlingInstallment
+    ? settlingInstallment.amount - (settlingInstallment.paidAmount || 0)
+    : settlingDebt
+      ? settlingDebt.totalAmount - settlingDebt.paidAmount
+      : 0
+  const settlingTitle = settlingInstallment
+    ? `${settlingDirection?.settleTitle} · Cuota ${settlingInstallment.number}/${settlingDebt?.installments?.length}`
+    : settlingDirection?.settleTitle
 
   return (
     <div>
@@ -296,13 +329,22 @@ export default function DebtsPage() {
       )}
 
       {settlingDebt && settlingDirection && (
-        <FormSheet open={!!settlingDebt} onClose={closeSettle} title={settlingDirection.settleTitle}>
+        <FormSheet open={!!settlingDebt} onClose={closeSettle} title={settlingTitle}>
           <p className={styles.settleHint}>{settlingDirection.settleDescription}</p>
           <form className={formStyles.form} onSubmit={handleSettleSubmit}>
             <div className={formStyles.field}>
               <label className={formStyles.label}>Deuda</label>
               <input value={settlingDebt.name} readOnly />
             </div>
+            {settlingInstallment && (
+              <div className={formStyles.field}>
+                <label className={formStyles.label}>Cuota</label>
+                <input
+                  value={`${settlingInstallment.number}/${settlingDebt.installments.length} · Vence ${formatDate(settlingInstallment.dueDate)}`}
+                  readOnly
+                />
+              </div>
+            )}
             <div className={formStyles.field}>
               <label className={formStyles.label}>Monto pendiente</label>
               <input
@@ -435,7 +477,7 @@ export default function DebtsPage() {
               )}
             </div>
             {!editingId && form.scheduleType === 'installments' && (
-              <div className={`${formStyles.row} ${styles.installmentRow}`}>
+              <div className={`${formStyles.row} ${styles.installmentFormRow}`}>
                 <div className={formStyles.field}>
                   <label className={formStyles.label}>Cantidad de cuotas</label>
                   <input
@@ -481,7 +523,7 @@ export default function DebtsPage() {
                 {editingId
                   ? 'Guardar'
                   : form.scheduleType === 'installments'
-                    ? 'Generar cuotas'
+                    ? 'Registrar deuda'
                     : 'Registrar'}
               </Button>
             </div>
@@ -502,6 +544,8 @@ export default function DebtsPage() {
               const direction = DEBT_DIRECTIONS[directionKey]
               const isReceivable = directionKey === 'receivable'
               const settled = isDebtSettled(debt)
+              const installmentDebt = hasInstallments(debt)
+              const installmentStats = installmentDebt ? getInstallmentStats(debt) : null
 
               return (
                 <div
@@ -522,10 +566,20 @@ export default function DebtsPage() {
                         {settled && (
                           <span className={styles.settledBadge}>{direction.settledLabel}</span>
                         )}
+                        {installmentDebt && !settled && (
+                          <span className={styles.installmentBadge}>
+                            {installmentStats.totalCount} cuotas
+                          </span>
+                        )}
                       </span>
                       <span className={listStyles.meta}>
                         {formatAmount(debt.paidAmount, debt.currency)} de {formatAmount(debt.totalAmount, debt.currency)}
-                        {debt.dueDate && ` · Vence ${formatDate(debt.dueDate)}`}
+                        {installmentDebt
+                          ? ` · ${installmentStats.paidCount}/${installmentStats.totalCount} cuotas pagadas`
+                          : debt.dueDate
+                            ? ` · Vence ${formatDate(debt.dueDate)}`
+                            : ''}
+                        {installmentStats?.nextDue && ` · Próxima ${formatDate(installmentStats.nextDue)}`}
                         {debt.description && ` · ${debt.description}`}
                       </span>
                       <div className={styles.progressBar}>
@@ -545,7 +599,7 @@ export default function DebtsPage() {
                       {formatAmount(remaining, debt.currency)}
                     </span>
                     <div className={listStyles.actions}>
-                      {!settled && (
+                      {!settled && !installmentDebt && (
                         <Button
                           variant="ghost"
                           className={styles.settleBtn}
@@ -556,7 +610,13 @@ export default function DebtsPage() {
                       )}
                       <IconButton
                         icon={isExpanded ? 'chevronUp' : 'receipt'}
-                        label={isExpanded ? 'Cerrar' : direction.paymentsLabel}
+                        label={
+                          isExpanded
+                            ? 'Cerrar'
+                            : installmentDebt
+                              ? 'Cuotas'
+                              : direction.paymentsLabel
+                        }
                         onClick={() => togglePayments(debt.id)}
                       />
                       <IconButton
@@ -574,7 +634,48 @@ export default function DebtsPage() {
                     </div>
                   </div>
 
-                  {isExpanded && (
+                  {isExpanded && installmentDebt && (
+                    <div className={styles.paymentsPanel}>
+                      <div className={styles.installmentsList}>
+                        {debt.installments.map((installment) => {
+                          const installmentSettled = isInstallmentSettled(installment)
+                          return (
+                            <div
+                              key={installment.id}
+                              className={`${styles.installmentItem} ${
+                                installmentSettled ? styles.installmentItemSettled : ''
+                              }`}
+                            >
+                              <div className={styles.installmentInfo}>
+                                <span className={styles.installmentTitle}>
+                                  Cuota {installment.number}/{debt.installments.length}
+                                </span>
+                                <span className={styles.installmentMeta}>
+                                  Vence {formatDate(installment.dueDate)}
+                                </span>
+                              </div>
+                              <span className={styles.installmentAmount}>
+                                {formatAmount(installment.amount, debt.currency)}
+                              </span>
+                              {installmentSettled ? (
+                                <span className={styles.settledBadge}>{direction.settledLabel}</span>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  className={styles.settleBtn}
+                                  onClick={() => openSettle(debt, installment)}
+                                >
+                                  {direction.settleLabel}
+                                </Button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {isExpanded && !installmentDebt && (
                     <div className={styles.paymentsPanel}>
                       <form
                         className={`${formStyles.form} ${styles.paymentForm}`}

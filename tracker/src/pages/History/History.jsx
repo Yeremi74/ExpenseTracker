@@ -35,30 +35,15 @@ const emptyFilters = {
 }
 
 function getDebtFilterOptions(debts) {
-  const options = new Map()
-
-  for (const debt of debts) {
-    if (debt.installmentGroupId) {
-      if (!options.has(debt.installmentGroupId)) {
-        const baseName = debt.name.replace(/\s*\(Cuota \d+\/\d+\)$/, '').trim()
-        options.set(debt.installmentGroupId, {
-          value: debt.installmentGroupId,
-          label: baseName,
-        })
-      }
-      continue
-    }
-
-    options.set(debt.id, { value: debt.id, label: debt.name })
-  }
-
-  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label, 'es'))
+  return debts
+    .map((debt) => ({ value: debt.id, label: debt.name }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'es'))
 }
 
 function buildDebtFilterIndex(debts) {
   const index = new Map()
   for (const debt of debts) {
-    index.set(debt.id, debt.installmentGroupId || debt.id)
+    index.set(debt.id, debt.id)
   }
   return index
 }

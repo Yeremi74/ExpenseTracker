@@ -14,6 +14,26 @@ function parseDirection(value) {
   throw new Error("direction must be payable or receivable");
 }
 
+function hasInstallments(debt) {
+  return Array.isArray(debt.installments) && debt.installments.length > 0;
+}
+
+function sumInstallmentPaid(installments) {
+  return installments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+}
+
+function serializeInstallment(inst) {
+  return {
+    id: inst.id.toString(),
+    number: inst.number,
+    amount: inst.amount,
+    dueDate: inst.dueDate instanceof Date ? inst.dueDate.toISOString() : inst.dueDate,
+    paidAmount: inst.paidAmount || 0,
+    settledAt: inst.settledAt instanceof Date ? inst.settledAt.toISOString() : inst.settledAt ?? null,
+    settlementTransactionId: inst.settlementTransactionId?.toString() ?? null,
+  };
+}
+
 function serializeDebt(doc) {
   const serialized = serializeDoc(doc);
   if (doc.installmentGroupId) {
@@ -21,6 +41,9 @@ function serializeDebt(doc) {
   }
   if (doc.settlementTransactionId) {
     serialized.settlementTransactionId = doc.settlementTransactionId.toString();
+  }
+  if (hasInstallments(doc)) {
+    serialized.installments = doc.installments.map(serializeInstallment);
   }
   return serialized;
 }
@@ -45,19 +68,52 @@ function parseInstallments(value) {
   };
 }
 
-function buildInstallmentDocs(base, installments, groupId) {
-  const docs = [];
-  for (let i = 0; i < installments.count; i++) {
-    docs.push({
-      ...base,
-      name: `${base.name} (Cuota ${i + 1}/${installments.count})`,
-      dueDate: addDaysUTC(installments.firstDueDate, i * installments.intervalDays),
-      installmentGroupId: groupId,
-      installmentNumber: i + 1,
-      installmentTotal: installments.count,
+function buildInstallmentsArray(amountPerInstallment, parsedInstallments) {
+  const items = [];
+  for (let i = 0; i < parsedInstallments.count; i++) {
+    items.push({
+      id: new ObjectId(),
+      number: i + 1,
+      amount: amountPerInstallment,
+      dueDate: addDaysUTC(parsedInstallments.firstDueDate, i * parsedInstallments.intervalDays),
+      paidAmount: 0,
+      settledAt: null,
+      settlementTransactionId: null,
     });
   }
-  return docs;
+  return items;
+}
+
+async function createSettlementTransaction(db, debt, amount, categoryId, settlementDate, debtId) {
+  const type = debt.direction === "receivable" ? "income" : "expense";
+  const category = await db.collection("categories").findOne({ _id: categoryId });
+  if (!category) throw new Error("category not found");
+  if (category.type !== type) {
+    throw new Error("category type does not match debt direction");
+  }
+
+  const transactionDoc = {
+    type,
+    amount,
+    currency: debt.currency || "ves",
+    categoryId,
+    title: debt.name,
+    description: debt.description?.trim() || "",
+    date: settlementDate,
+    debtId,
+    createdAt: new Date(),
+  };
+
+  const txResult = await db.collection("transactions").insertOne(transactionDoc);
+  return {
+    transactionId: txResult.insertedId,
+    transaction: serializeDoc({
+      _id: txResult.insertedId,
+      ...transactionDoc,
+      categoryId: categoryId.toString(),
+      debtId: debtId.toString(),
+    }),
+  };
 }
 
 router.post("/:id/settle", async (req, res) => {
@@ -65,7 +121,7 @@ router.post("/:id/settle", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const { date, categoryId } = req.body;
+    const { date, categoryId, installmentId } = req.body;
     const catId = toObjectId(categoryId);
     if (!catId) return res.status(400).json({ error: "categoryId is required" });
 
@@ -73,42 +129,86 @@ router.post("/:id/settle", async (req, res) => {
     const debt = await db.collection("debts").findOne({ _id: id });
     if (!debt) return res.status(404).json({ error: "not found" });
 
+    const settlementDate = date
+      ? parseDateInput(date)
+      : parseDateInput(new Date().toISOString().slice(0, 10));
+
+    if (hasInstallments(debt)) {
+      if (!installmentId) {
+        return res.status(400).json({ error: "installmentId is required for installment debts" });
+      }
+
+      const instObjectId = toObjectId(installmentId);
+      if (!instObjectId) return res.status(400).json({ error: "invalid installmentId" });
+
+      const installment = debt.installments.find((inst) => inst.id.equals(instObjectId));
+      if (!installment) return res.status(404).json({ error: "installment not found" });
+
+      const remaining = installment.amount - (installment.paidAmount || 0);
+      if (remaining <= 0) {
+        return res.status(400).json({ error: "installment is already settled" });
+      }
+
+      const { transactionId, transaction } = await createSettlementTransaction(
+        db,
+        {
+          ...debt,
+          name: `${debt.name} (Cuota ${installment.number}/${debt.installments.length})`,
+        },
+        remaining,
+        catId,
+        settlementDate,
+        id
+      );
+
+      const updatedInstallments = debt.installments.map((inst) => {
+        if (!inst.id.equals(instObjectId)) return inst;
+        return {
+          ...inst,
+          paidAmount: inst.amount,
+          settledAt: settlementDate,
+          settlementTransactionId: transactionId,
+        };
+      });
+
+      const result = await db.collection("debts").findOneAndUpdate(
+        { _id: id },
+        {
+          $set: {
+            installments: updatedInstallments,
+            paidAmount: sumInstallmentPaid(updatedInstallments),
+          },
+        },
+        { returnDocument: "after" }
+      );
+
+      return res.status(201).json({
+        debt: serializeDebt(result),
+        transaction,
+      });
+    }
+
     const remaining = debt.totalAmount - debt.paidAmount;
     if (remaining <= 0) {
       return res.status(400).json({ error: "debt is already settled" });
     }
 
-    const type = debt.direction === "receivable" ? "income" : "expense";
-    const category = await db.collection("categories").findOne({ _id: catId });
-    if (!category) return res.status(400).json({ error: "category not found" });
-    if (category.type !== type) {
-      return res.status(400).json({ error: "category type does not match debt direction" });
-    }
+    const { transactionId, transaction } = await createSettlementTransaction(
+      db,
+      debt,
+      remaining,
+      catId,
+      settlementDate,
+      id
+    );
 
-    const settlementDate = date
-      ? parseDateInput(date)
-      : parseDateInput(new Date().toISOString().slice(0, 10));
-
-    const transactionDoc = {
-      type,
-      amount: remaining,
-      currency: debt.currency || "ves",
-      categoryId: catId,
-      title: debt.name,
-      description: debt.description?.trim() || "",
-      date: settlementDate,
-      debtId: id,
-      createdAt: new Date(),
-    };
-
-    const txResult = await db.collection("transactions").insertOne(transactionDoc);
     const result = await db.collection("debts").findOneAndUpdate(
       { _id: id },
       {
         $set: {
           paidAmount: debt.totalAmount,
           settledAt: settlementDate,
-          settlementTransactionId: txResult.insertedId,
+          settlementTransactionId: transactionId,
         },
       },
       { returnDocument: "after" }
@@ -116,12 +216,7 @@ router.post("/:id/settle", async (req, res) => {
 
     res.status(201).json({
       debt: serializeDebt(result),
-      transaction: serializeDoc({
-        _id: txResult.insertedId,
-        ...transactionDoc,
-        categoryId: catId.toString(),
-        debtId: id.toString(),
-      }),
+      transaction,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -156,9 +251,6 @@ router.post("/", async (req, res) => {
 
     const paid = paidAmount != null ? Number(paidAmount) : 0;
     if (paid < 0) return res.status(400).json({ error: "paidAmount cannot be negative" });
-    if (paid > Number(totalAmount)) {
-      return res.status(400).json({ error: "paidAmount cannot exceed totalAmount" });
-    }
 
     let parsedCurrency;
     try {
@@ -174,15 +266,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: err.message });
     }
 
-    const baseDoc = {
-      name: name.trim(),
-      totalAmount: Number(totalAmount),
-      paidAmount: paid,
-      currency: parsedCurrency,
-      direction: parsedDirection,
-      description: description?.trim() || "",
-      createdAt: new Date(),
-    };
+    const amountPerUnit = Number(totalAmount);
 
     if (installments) {
       if (paid > 0) {
@@ -196,19 +280,36 @@ router.post("/", async (req, res) => {
         return res.status(400).json({ error: err.message });
       }
 
-      const groupId = new ObjectId();
-      const docs = buildInstallmentDocs(baseDoc, parsedInstallments, groupId);
-      const result = await getDb().collection("debts").insertMany(docs);
-      const created = docs.map((doc, index) =>
-        serializeDebt({ _id: result.insertedIds[index], ...doc })
-      );
+      const installmentItems = buildInstallmentsArray(amountPerUnit, parsedInstallments);
+      const doc = {
+        name: name.trim(),
+        totalAmount: amountPerUnit * parsedInstallments.count,
+        paidAmount: 0,
+        currency: parsedCurrency,
+        direction: parsedDirection,
+        description: description?.trim() || "",
+        dueDate: null,
+        installments: installmentItems,
+        createdAt: new Date(),
+      };
 
-      return res.status(201).json({ count: created.length, debts: created });
+      const result = await getDb().collection("debts").insertOne(doc);
+      return res.status(201).json(serializeDebt({ _id: result.insertedId, ...doc }));
+    }
+
+    if (paid > amountPerUnit) {
+      return res.status(400).json({ error: "paidAmount cannot exceed totalAmount" });
     }
 
     const doc = {
-      ...baseDoc,
+      name: name.trim(),
+      totalAmount: amountPerUnit,
+      paidAmount: paid,
+      currency: parsedCurrency,
+      direction: parsedDirection,
+      description: description?.trim() || "",
       dueDate: dueDate ? parseDateInput(dueDate) : null,
+      createdAt: new Date(),
     };
 
     const result = await getDb().collection("debts").insertOne(doc);
@@ -237,16 +338,24 @@ router.put("/:id", async (req, res) => {
       if (Number(totalAmount) <= 0) {
         return res.status(400).json({ error: "totalAmount must be greater than 0" });
       }
+      if (hasInstallments(existing)) {
+        return res.status(400).json({ error: "totalAmount cannot be edited for installment debts" });
+      }
       update.totalAmount = Number(totalAmount);
     }
     if (paidAmount !== undefined) {
+      if (hasInstallments(existing)) {
+        return res.status(400).json({ error: "paidAmount is managed through installments" });
+      }
       if (Number(paidAmount) < 0) {
         return res.status(400).json({ error: "paidAmount cannot be negative" });
       }
       update.paidAmount = Number(paidAmount);
     }
     if (description !== undefined) update.description = description.trim();
-    if (dueDate !== undefined) update.dueDate = dueDate ? parseDateInput(dueDate) : null;
+    if (dueDate !== undefined && !hasInstallments(existing)) {
+      update.dueDate = dueDate ? parseDateInput(dueDate) : null;
+    }
     if (direction !== undefined) {
       try {
         update.direction = parseDirection(direction);
@@ -262,10 +371,12 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    const nextTotal = update.totalAmount ?? existing.totalAmount;
-    const nextPaid = update.paidAmount ?? existing.paidAmount;
-    if (nextPaid > nextTotal) {
-      return res.status(400).json({ error: "paidAmount cannot exceed totalAmount" });
+    if (!hasInstallments(existing)) {
+      const nextTotal = update.totalAmount ?? existing.totalAmount;
+      const nextPaid = update.paidAmount ?? existing.paidAmount;
+      if (nextPaid > nextTotal) {
+        return res.status(400).json({ error: "paidAmount cannot exceed totalAmount" });
+      }
     }
 
     const result = await getDb()

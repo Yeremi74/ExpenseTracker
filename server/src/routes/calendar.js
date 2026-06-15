@@ -4,6 +4,57 @@ const { utcMonthRange } = require("../utils/date");
 
 const router = express.Router();
 
+function hasInstallments(debt) {
+  return Array.isArray(debt.installments) && debt.installments.length > 0;
+}
+
+function debtEventsFromDoc(d, start, end) {
+  if (hasInstallments(d)) {
+    return d.installments
+      .filter((inst) => inst.dueDate >= start && inst.dueDate <= end)
+      .map((inst) => {
+        const isSettled = (inst.paidAmount || 0) >= inst.amount;
+        return {
+          id: `${d._id.toString()}-${inst.id.toString()}`,
+          source: "debt",
+          title: `${d.name} (Cuota ${inst.number}/${d.installments.length})`,
+          amount: inst.amount - (inst.paidAmount || 0),
+          totalAmount: inst.amount,
+          currency: d.currency || "ves",
+          date: inst.dueDate,
+          debtId: d._id.toString(),
+          installmentId: inst.id.toString(),
+          direction: d.direction || "payable",
+          installmentNumber: inst.number,
+          installmentTotal: d.installments.length,
+          isSettled,
+          type: "debt",
+        };
+      });
+  }
+
+  if (!d.dueDate || d.dueDate < start || d.dueDate > end) return [];
+
+  const isSettled = d.paidAmount >= d.totalAmount;
+  return [
+    {
+      id: d._id.toString(),
+      source: "debt",
+      title: d.name,
+      amount: d.totalAmount - d.paidAmount,
+      totalAmount: d.totalAmount,
+      currency: d.currency || "ves",
+      date: d.dueDate,
+      debtId: d._id.toString(),
+      direction: d.direction || "payable",
+      installmentNumber: d.installmentNumber ?? null,
+      installmentTotal: d.installmentTotal ?? null,
+      isSettled,
+      type: "debt",
+    },
+  ];
+}
+
 router.get("/events", async (req, res) => {
   try {
     const year = Number(req.query.year) || new Date().getFullYear();
@@ -16,12 +67,7 @@ router.get("/events", async (req, res) => {
         .collection("reminders")
         .find({ date: { $gte: start, $lte: end } })
         .toArray(),
-      db
-        .collection("debts")
-        .find({
-          dueDate: { $gte: start, $lte: end },
-        })
-        .toArray(),
+      db.collection("debts").find({}).toArray(),
     ]);
 
     const events = [
@@ -35,24 +81,7 @@ router.get("/events", async (req, res) => {
         debtId: r.debtId?.toString() ?? null,
         type: r.type,
       })),
-      ...debts.map((d) => {
-        const isSettled = d.paidAmount >= d.totalAmount;
-        return {
-          id: d._id.toString(),
-          source: "debt",
-          title: d.name,
-          amount: d.totalAmount - d.paidAmount,
-          totalAmount: d.totalAmount,
-          currency: d.currency || "ves",
-          date: d.dueDate,
-          debtId: d._id.toString(),
-          direction: d.direction || "payable",
-          installmentNumber: d.installmentNumber ?? null,
-          installmentTotal: d.installmentTotal ?? null,
-          isSettled,
-          type: "debt",
-        };
-      }),
+      ...debts.flatMap((d) => debtEventsFromDoc(d, start, end)),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     res.json(events);

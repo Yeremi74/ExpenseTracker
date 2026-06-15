@@ -194,22 +194,52 @@ router.get("/alerts", async (_req, res) => {
       }
     }
 
-    const upcomingDebts = debts.filter((debt) => {
-      if (!debt.dueDate) return false;
+    const hasInstallments = (debt) =>
+      Array.isArray(debt.installments) && debt.installments.length > 0;
+
+    const upcomingDebts = [];
+
+    for (const debt of debts) {
+      if (hasInstallments(debt)) {
+        for (const inst of debt.installments) {
+          if ((inst.paidAmount || 0) >= inst.amount) continue;
+          if (!inst.dueDate) continue;
+          const due = new Date(inst.dueDate);
+          const now = new Date();
+          const week = new Date(Date.now() + 7 * 86400000);
+          if (due >= now && due <= week) {
+            upcomingDebts.push({ debt, inst });
+          }
+        }
+        continue;
+      }
+
+      if (!debt.dueDate) continue;
       const due = new Date(debt.dueDate);
       const now = new Date();
       const week = new Date(Date.now() + 7 * 86400000);
-      return due >= now && due <= week && debt.paidAmount < debt.totalAmount;
-    });
+      if (due >= now && due <= week && debt.paidAmount < debt.totalAmount) {
+        upcomingDebts.push({ debt, inst: null });
+      }
+    }
 
-    for (const debt of upcomingDebts) {
+    for (const { debt, inst } of upcomingDebts) {
+      const isReceivable = (debt.direction || "payable") === "receivable";
+      const label = inst
+        ? `${debt.name} (Cuota ${inst.number}/${debt.installments.length})`
+        : debt.name;
+      const dueDate = inst ? inst.dueDate : debt.dueDate;
+      const amount = inst
+        ? inst.amount - (inst.paidAmount || 0)
+        : debt.totalAmount - debt.paidAmount;
+
       alerts.push({
         level: "info",
         type: "debt",
         debtId: debt._id.toString(),
-        categoryName: debt.name,
-        message: `${(debt.direction || "payable") === "receivable" ? "Cobro" : "Pago"} próximo: ${debt.name} vence ${debt.dueDate.toISOString().slice(0, 10)}`,
-        amount: debt.totalAmount - debt.paidAmount,
+        categoryName: label,
+        message: `${isReceivable ? "Cobro" : "Pago"} próximo: ${label} vence ${dueDate.toISOString().slice(0, 10)}`,
+        amount,
         currency: debt.currency || "ves",
       });
     }

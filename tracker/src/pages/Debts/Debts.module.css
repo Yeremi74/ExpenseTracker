@@ -1,6 +1,66 @@
-.installmentRow {
+.installmentFormRow {
   margin-top: -0.25rem;
 }
+
+.installmentBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-h);
+}
+
+.installmentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.installmentItem {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.installmentItem:last-child {
+  border-bottom: none;
+}
+
+.installmentItemSettled {
+  opacity: 0.72;
+}
+
+.installmentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.installmentTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.installmentMeta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.installmentAmount {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .formCard {
   margin-bottom: 1.5rem;
 }
@@ -130,5 +190,21 @@
 
   .paymentNote {
     grid-column: 1 / -1;
+  }
+
+  .installmentItem {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .installmentAmount {
+    justify-self: end;
+  }
+
+  .installmentItem .settleBtn,
+  .installmentItem .settledBadge {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
