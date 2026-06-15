@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   deleteTransaction,
-  getCalendarEvents,
   getCategories,
   getDebts,
   getTransactions,
@@ -17,6 +16,7 @@ import PageHeader from '../../components/ui/PageHeader.jsx'
 import SidePanel from '../../components/ui/SidePanel.jsx'
 import {
   MONTHS,
+  buildDebtCalendarEvents,
   getMonthRange,
   groupEventsByDay,
   groupItemsByDay,
@@ -84,50 +84,58 @@ function getTransactionLabel(tx, categoryMap) {
 }
 
 function DayPreview({ transactions, debts }) {
-  const items = [
-    ...transactions.map((tx) => ({ kind: 'transaction', data: tx })),
-    ...debts.map((debt) => ({ kind: 'debt', data: debt })),
-  ]
-  const preview = items.slice(0, 2)
-  const remaining = items.length - preview.length
+  const txPreview = transactions.slice(0, 2)
+  const txRemaining = transactions.length - txPreview.length
+  const debtPreview = debts.slice(0, 2)
+  const debtRemaining = debts.length - debtPreview.length
+
+  if (!transactions.length && !debts.length) return null
 
   return (
     <div className={styles.dayPreview}>
-      {preview.map((item) => {
-        if (item.kind === 'transaction') {
-          const tx = item.data
-          return (
+      {debts.length > 0 && (
+        <div className={styles.dayPreviewGroup}>
+          {debtPreview.map((debt) => {
+            const settled = debt.isSettled
+            return (
+              <span
+                key={`debt-${debt.id}`}
+                className={`${styles.dayPreviewItem} ${
+                  settled
+                    ? styles.dayPreviewDebtSettled
+                    : debt.direction === 'receivable'
+                      ? styles.dayPreviewReceivable
+                      : styles.dayPreviewDebt
+                }`}
+                title={debt.title}
+              >
+                {settled ? '✓ ' : ''}
+                {debt.title}
+              </span>
+            )
+          })}
+          {debtRemaining > 0 && (
+            <span className={styles.dayPreviewMore}>+{debtRemaining}</span>
+          )}
+        </div>
+      )}
+      {transactions.length > 0 && (
+        <div className={styles.dayPreviewGroup}>
+          {txPreview.map((tx) => (
             <span
               key={`tx-${tx.id}`}
               className={`${styles.dayPreviewItem} ${
                 tx.type === 'income' ? styles.dayPreviewIncome : styles.dayPreviewExpense
               }`}
+              title={tx.title?.trim() || 'Movimiento'}
             >
               {tx.title?.trim() || 'Movimiento'}
             </span>
-          )
-        }
-
-        const debt = item.data
-        const settled = debt.isSettled
-        return (
-          <span
-            key={`debt-${debt.id}`}
-            className={`${styles.dayPreviewItem} ${
-              settled
-                ? styles.dayPreviewDebtSettled
-                : debt.direction === 'receivable'
-                  ? styles.dayPreviewReceivable
-                  : styles.dayPreviewDebt
-            }`}
-          >
-            {settled ? '✓ ' : ''}
-            {debt.title}
-          </span>
-        )
-      })}
-      {remaining > 0 && (
-        <span className={styles.dayPreviewMore}>+{remaining}</span>
+          ))}
+          {txRemaining > 0 && (
+            <span className={styles.dayPreviewMore}>+{txRemaining}</span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -140,7 +148,6 @@ export default function HistoryPage() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
   const [monthTransactions, setMonthTransactions] = useState([])
-  const [monthDebtEvents, setMonthDebtEvents] = useState([])
   const [categories, setCategories] = useState([])
   const [debts, setDebts] = useState([])
   const [filters, setFilters] = useState(emptyFilters)
@@ -149,15 +156,14 @@ export default function HistoryPage() {
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
-    getDebts().then(setDebts).catch(() => {})
   }, [])
 
   useEffect(() => {
     const query = getCalendarQuery(calendarYear, calendarMonth, applied)
-    Promise.all([getTransactions(query), getCalendarEvents(calendarYear, calendarMonth)])
-      .then(([transactions, events]) => {
+    Promise.all([getTransactions(query), getDebts()])
+      .then(([transactions, debtsList]) => {
         setMonthTransactions(transactions)
-        setMonthDebtEvents(events.filter((event) => event.source === 'debt'))
+        setDebts(debtsList)
       })
       .catch((err) => setError(err.message))
   }, [calendarYear, calendarMonth, applied])
@@ -192,6 +198,10 @@ export default function HistoryPage() {
   const categoryMap = Object.fromEntries(categories.map((c) => [c.id, c.name]))
   const debtFilterOptions = getDebtFilterOptions(debts)
   const debtFilterIndex = useMemo(() => buildDebtFilterIndex(debts), [debts])
+  const monthDebtEvents = useMemo(
+    () => buildDebtCalendarEvents(debts, calendarYear, calendarMonth),
+    [debts, calendarYear, calendarMonth]
+  )
   const monthDebts = useMemo(
     () => monthDebtEvents.filter((event) => matchesDebtFilter(event, applied.debtId, debtFilterIndex)),
     [monthDebtEvents, applied.debtId, debtFilterIndex]
@@ -212,8 +222,31 @@ export default function HistoryPage() {
     <div>
       <PageHeader
         title="Historial"
-        subtitle="Movimientos y cuotas por día en el calendario"
+        subtitle="Movimientos y deudas por día en el calendario"
       />
+
+      <div className={styles.legend}>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.dayPreviewIncome}`} />
+          Ingreso
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.dayPreviewExpense}`} />
+          Gasto
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.dayPreviewDebt}`} />
+          Deuda
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.dayPreviewReceivable}`} />
+          Por cobrar
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendDot} ${styles.dayPreviewDebtSettled}`} />
+          Liquidada
+        </span>
+      </div>
 
       <div className={styles.toolbar}>
         <Button
@@ -335,12 +368,12 @@ export default function HistoryPage() {
         }
       >
         {!hasSelectedItems ? (
-          <EmptyState message="Sin movimientos ni cuotas este día" />
+          <EmptyState message="Sin movimientos ni deudas este día" />
         ) : (
           <>
             {selectedDayDebts.length > 0 && (
               <div className={styles.panelSection}>
-                <h3 className={styles.panelSectionTitle}>Cuotas</h3>
+                <h3 className={styles.panelSectionTitle}>Deudas</h3>
                 <div className={listStyles.list}>
                   {selectedDayDebts.map((debt) => (
                     <div
@@ -386,7 +419,7 @@ export default function HistoryPage() {
                               : styles.badgeDebt
                         }`}
                       >
-                        {debt.isSettled ? 'Liquidada' : 'Cuota'}
+                        {debt.isSettled ? 'Liquidada' : debt.installmentNumber ? 'Cuota' : 'Deuda'}
                       </span>
                     </div>
                   ))}

@@ -53,4 +53,30 @@ export function groupEventsByDay(events, year, month) {
   return groupItemsByDay(events, year, month)
 }
 
+export function buildDebtCalendarEvents(debts, year, month) {
+  const monthRange = getMonthRange(year, month)
+
+  return debts
+    .filter((debt) => {
+      if (!debt.dueDate) return false
+      const dateKey = String(debt.dueDate).slice(0, 10)
+      return dateKey >= monthRange.dateFrom && dateKey <= monthRange.dateTo
+    })
+    .map((debt) => ({
+      id: debt.id,
+      source: 'debt',
+      title: debt.name,
+      amount: debt.totalAmount - debt.paidAmount,
+      totalAmount: debt.totalAmount,
+      currency: debt.currency || 'ves',
+      date: debt.dueDate,
+      debtId: debt.id,
+      direction: debt.direction || 'payable',
+      installmentNumber: debt.installmentNumber ?? null,
+      installmentTotal: debt.installmentTotal ?? null,
+      isSettled: debt.paidAmount >= debt.totalAmount,
+      type: 'debt',
+    }))
+}
+
 export { WEEKDAYS, WEEKDAYS_SHORT, MONTHS, MONTHS_SHORT }
