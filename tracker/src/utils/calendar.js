@@ -53,7 +53,7 @@ export function groupEventsByDay(events, year, month) {
   return groupItemsByDay(events, year, month)
 }
 
-function buildDebtCalendarEvents(debts, year, month) {
+export function buildDebtCalendarEvents(debts, year, month) {
   const monthRange = getMonthRange(year, month)
   const events = []
 
