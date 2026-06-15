@@ -2,15 +2,32 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import styles from './Layout.module.css'
 
-const navItems = [
-  { to: '/', label: 'Dashboard', end: true },
-  { to: '/incomes', label: 'Ingresos' },
-  { to: '/expenses', label: 'Gastos' },
-  { to: '/history', label: 'Calendario' },
-  { to: '/categories', label: 'Categorías' },
-  { to: '/debts', label: 'Deudas' },
-  { to: '/simulator', label: 'Simulador' },
-  { to: '/rates', label: 'Tasas' },
+const navSections = [
+  {
+    items: [{ to: '/', label: 'Dashboard', end: true }],
+  },
+  {
+    label: 'Finanzas',
+    items: [
+      { to: '/incomes', label: 'Ingresos' },
+      { to: '/expenses', label: 'Gastos' },
+      { to: '/debts', label: 'Deudas' },
+    ],
+  },
+  {
+    label: 'Registro',
+    items: [
+      { to: '/history', label: 'Calendario' },
+      { to: '/categories', label: 'Categorías' },
+    ],
+  },
+  {
+    label: 'Herramientas',
+    items: [
+      { to: '/simulator', label: 'Simulador' },
+      { to: '/rates', label: 'Tasas' },
+    ],
+  },
 ]
 
 export default function Layout() {
@@ -38,10 +55,6 @@ export default function Layout() {
   return (
     <div className={styles.shell}>
       <header className={styles.mobileHeader}>
-        <div className={styles.brand}>
-          <span className={styles.brandMark}>◆</span>
-          <span className={styles.brandName}>Tracker</span>
-        </div>
         <button
           type="button"
           className={styles.menuButton}
@@ -51,6 +64,10 @@ export default function Layout() {
         >
           <span className={styles.menuIcon} />
         </button>
+        <div className={styles.brand}>
+          <span className={styles.brandMark}>◆</span>
+          <span className={styles.brandName}>Tracker</span>
+        </div>
       </header>
 
       {menuOpen && (
@@ -73,17 +90,26 @@ export default function Layout() {
           </button>
         </div>
         <nav className={styles.nav}>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
-              }
-            >
-              {item.label}
-            </NavLink>
+          {navSections.map((section) => (
+            <div key={section.label || 'overview'} className={styles.navSection}>
+              {section.label && (
+                <span className={styles.navSectionLabel}>{section.label}</span>
+              )}
+              <div className={styles.navSectionLinks}>
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </aside>

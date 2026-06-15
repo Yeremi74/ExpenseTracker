@@ -14,6 +14,14 @@ export function formatAmount(value, currency = 'ves') {
   return `${formatted} Bs.`
 }
 
+export function formatRate(value) {
+  if (value == null || Number(value) <= 0) return null
+  return new Intl.NumberFormat('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value))
+}
+
 export function formatCurrency(value) {
   return formatAmount(value, 'ves')
 }

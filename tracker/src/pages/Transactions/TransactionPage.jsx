@@ -7,6 +7,7 @@ import {
   updateTransaction,
 } from '../../api/api.js'
 import formStyles from '../../components/forms/Form.module.css'
+import FormExchangeRates from '../../components/forms/FormExchangeRates.jsx'
 import listStyles from '../../components/lists/List.module.css'
 import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
@@ -185,6 +186,7 @@ export default function TransactionPage({ type }) {
                 onChange={(currency) => setForm({ ...form, currency })}
               />
             </div>
+            <FormExchangeRates amount={form.amount} currency={form.currency} />
             <div className={formStyles.row}>
               <div className={formStyles.field}>
                 <label className={formStyles.label}>Categoría</label>
