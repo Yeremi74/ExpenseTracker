@@ -109,15 +109,19 @@ function DayPreview({ transactions, debts }) {
         }
 
         const debt = item.data
+        const settled = debt.isSettled
         return (
           <span
             key={`debt-${debt.id}`}
             className={`${styles.dayPreviewItem} ${
-              debt.direction === 'receivable'
-                ? styles.dayPreviewReceivable
-                : styles.dayPreviewDebt
+              settled
+                ? styles.dayPreviewDebtSettled
+                : debt.direction === 'receivable'
+                  ? styles.dayPreviewReceivable
+                  : styles.dayPreviewDebt
             }`}
           >
+            {settled ? '✓ ' : ''}
             {debt.title}
           </span>
         )
@@ -339,30 +343,50 @@ export default function HistoryPage() {
                 <h3 className={styles.panelSectionTitle}>Cuotas</h3>
                 <div className={listStyles.list}>
                   {selectedDayDebts.map((debt) => (
-                    <div key={debt.id} className={`${listStyles.item} ${styles.panelItem}`}>
+                    <div
+                      key={debt.id}
+                      className={`${listStyles.item} ${styles.panelItem} ${
+                        debt.isSettled ? styles.panelItemSettled : ''
+                      }`}
+                    >
                       <div className={listStyles.info}>
-                        <span className={listStyles.name}>{debt.title}</span>
+                        <span className={listStyles.name}>
+                          {debt.isSettled ? '✓ ' : ''}
+                          {debt.title}
+                        </span>
                         <span className={listStyles.meta}>
                           {debt.direction === 'receivable' ? 'Me deben' : 'Yo debo'}
+                          {debt.isSettled
+                            ? debt.direction === 'receivable'
+                              ? ' · Cobrada'
+                              : ' · Pagada'
+                            : ''}
                         </span>
                       </div>
                       <span
                         className={`${listStyles.amount} ${
-                          debt.direction === 'receivable'
-                            ? listStyles.amountPositive
-                            : listStyles.amountWarning
+                          debt.isSettled
+                            ? styles.amountSettled
+                            : debt.direction === 'receivable'
+                              ? listStyles.amountPositive
+                              : listStyles.amountWarning
                         }`}
                       >
-                        {formatAmount(debt.amount, debt.currency || 'ves')}
+                        {formatAmount(
+                          debt.isSettled ? debt.totalAmount : debt.amount,
+                          debt.currency || 'ves'
+                        )}
                       </span>
                       <span
                         className={`${listStyles.badge} ${
-                          debt.direction === 'receivable'
-                            ? listStyles.badgeIncome
-                            : styles.badgeDebt
+                          debt.isSettled
+                            ? styles.badgeDebtSettled
+                            : debt.direction === 'receivable'
+                              ? listStyles.badgeIncome
+                              : styles.badgeDebt
                         }`}
                       >
-                        Cuota
+                        {debt.isSettled ? 'Liquidada' : 'Cuota'}
                       </span>
                     </div>
                   ))}

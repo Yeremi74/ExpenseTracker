@@ -19,6 +19,9 @@ function serializeDebt(doc) {
   if (doc.installmentGroupId) {
     serialized.installmentGroupId = doc.installmentGroupId.toString();
   }
+  if (doc.settlementTransactionId) {
+    serialized.settlementTransactionId = doc.settlementTransactionId.toString();
+  }
   return serialized;
 }
 
@@ -56,6 +59,74 @@ function buildInstallmentDocs(base, installments, groupId) {
   }
   return docs;
 }
+
+router.post("/:id/settle", async (req, res) => {
+  try {
+    const id = toObjectId(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid id" });
+
+    const { date, categoryId } = req.body;
+    const catId = toObjectId(categoryId);
+    if (!catId) return res.status(400).json({ error: "categoryId is required" });
+
+    const db = getDb();
+    const debt = await db.collection("debts").findOne({ _id: id });
+    if (!debt) return res.status(404).json({ error: "not found" });
+
+    const remaining = debt.totalAmount - debt.paidAmount;
+    if (remaining <= 0) {
+      return res.status(400).json({ error: "debt is already settled" });
+    }
+
+    const type = debt.direction === "receivable" ? "income" : "expense";
+    const category = await db.collection("categories").findOne({ _id: catId });
+    if (!category) return res.status(400).json({ error: "category not found" });
+    if (category.type !== type) {
+      return res.status(400).json({ error: "category type does not match debt direction" });
+    }
+
+    const settlementDate = date
+      ? parseDateInput(date)
+      : parseDateInput(new Date().toISOString().slice(0, 10));
+
+    const transactionDoc = {
+      type,
+      amount: remaining,
+      currency: debt.currency || "ves",
+      categoryId: catId,
+      title: debt.name,
+      description: debt.description?.trim() || "",
+      date: settlementDate,
+      debtId: id,
+      createdAt: new Date(),
+    };
+
+    const txResult = await db.collection("transactions").insertOne(transactionDoc);
+    const result = await db.collection("debts").findOneAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          paidAmount: debt.totalAmount,
+          settledAt: settlementDate,
+          settlementTransactionId: txResult.insertedId,
+        },
+      },
+      { returnDocument: "after" }
+    );
+
+    res.status(201).json({
+      debt: serializeDebt(result),
+      transaction: serializeDoc({
+        _id: txResult.insertedId,
+        ...transactionDoc,
+        categoryId: catId.toString(),
+        debtId: id.toString(),
+      }),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.use("/:debtId/payments", debtPaymentsRouter);
 

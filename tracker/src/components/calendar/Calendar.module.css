@@ -1,14 +1,19 @@
 .calendarCard {
   margin-bottom: 1rem;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 1rem;
+  overflow: hidden;
 }
 
 .nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+  min-width: 0;
 }
 
 .navBtn {
@@ -17,6 +22,7 @@
   border-radius: var(--radius);
   width: 2rem;
   height: 2rem;
+  flex-shrink: 0;
   font-size: 0.875rem;
   color: var(--text);
 }
@@ -28,13 +34,19 @@
 .monthLabel {
   font-size: 1rem;
   font-weight: 600;
+  text-align: center;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.375rem;
   margin-bottom: 0.5rem;
+  min-width: 0;
 }
 
 .weekday {
@@ -44,12 +56,14 @@
   letter-spacing: 0.06em;
   color: var(--text-muted);
   padding: 0.25rem;
+  min-width: 0;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.375rem;
+  min-width: 0;
 }
 
 .emptyDay {
@@ -61,6 +75,7 @@
 }
 
 .day {
+  min-width: 0;
   min-height: 2.5rem;
   display: flex;
   flex-direction: column;
@@ -71,6 +86,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
+  overflow: hidden;
+  padding: 0;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
@@ -118,6 +135,7 @@
   font-family: var(--mono);
   color: var(--text-h);
   align-self: flex-start;
+  line-height: 1;
 }
 
 .dayContent {
@@ -126,6 +144,7 @@
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+  overflow: hidden;
 }
 
 .dot {
@@ -137,4 +156,63 @@
 
 .today .dot {
   background: #fbbf24;
+}
+
+@media (max-width: 768px) {
+  .calendarCard {
+    padding: 0.625rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .nav {
+    margin-bottom: 0.75rem;
+  }
+
+  .monthLabel {
+    font-size: 0.875rem;
+  }
+
+  .weekdays {
+    gap: 0.125rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .weekday {
+    font-size: 0.5625rem;
+    padding: 0.125rem 0;
+    letter-spacing: 0;
+  }
+
+  .grid {
+    gap: 0.125rem;
+  }
+
+  .emptyDayDetailed {
+    min-height: 3.25rem;
+  }
+
+  .dayDetailed {
+    min-height: 3.25rem;
+    padding: 0.1875rem;
+    gap: 0.125rem;
+  }
+
+  .dayNum {
+    font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .emptyDayDetailed {
+    min-height: 2.75rem;
+  }
+
+  .dayDetailed {
+    min-height: 2.75rem;
+    padding: 0.125rem;
+  }
+
+  .dayNum {
+    font-size: 0.625rem;
+  }
 }

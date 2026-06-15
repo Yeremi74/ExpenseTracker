@@ -2,11 +2,16 @@ import { useState } from 'react'
 import Card from '../ui/Card.jsx'
 import {
   MONTHS,
+  MONTHS_SHORT,
   WEEKDAYS,
+  WEEKDAYS_SHORT,
   getMonthDays,
   toDateKey,
 } from '../../utils/calendar.js'
+import { useMediaQuery } from '../../utils/useMediaQuery.js'
 import styles from './Calendar.module.css'
+
+const MOBILE_QUERY = '(max-width: 768px)'
 
 export default function Calendar({
   year: yearProp,
@@ -25,6 +30,11 @@ export default function Calendar({
   const year = yearProp ?? internalYear
   const month = monthProp ?? internalMonth
   const isDetailed = Boolean(renderDayContent)
+  const isMobile = useMediaQuery(MOBILE_QUERY)
+  const weekdayLabels = isMobile ? WEEKDAYS_SHORT : WEEKDAYS
+  const monthLabel = isMobile
+    ? `${MONTHS_SHORT[month - 1]} ${year}`
+    : `${MONTHS[month - 1]} ${year}`
 
   function changeMonth(nextYear, nextMonth) {
     if (yearProp === undefined) {
@@ -60,16 +70,14 @@ export default function Calendar({
         <button type="button" className={styles.navBtn} onClick={prevMonth}>
           ←
         </button>
-        <h2 className={styles.monthLabel}>
-          {MONTHS[month - 1]} {year}
-        </h2>
+        <h2 className={styles.monthLabel}>{monthLabel}</h2>
         <button type="button" className={styles.navBtn} onClick={nextMonth}>
           →
         </button>
       </div>
 
       <div className={styles.weekdays}>
-        {WEEKDAYS.map((d) => (
+        {weekdayLabels.map((d) => (
           <span key={d} className={styles.weekday}>{d}</span>
         ))}
       </div>

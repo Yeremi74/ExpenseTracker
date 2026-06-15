@@ -125,6 +125,13 @@ export function deleteDebtPayment(debtId, paymentId) {
   }).then(parseResponse)
 }
 
+export function settleDebt(id, body) {
+  return apiFetch(`/api/debts/${id}/settle`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }).then(parseResponse)
+}
+
 export function getReminders() {
   return apiFetch('/api/reminders').then(parseResponse)
 }

@@ -20,7 +20,6 @@ router.get("/events", async (req, res) => {
         .collection("debts")
         .find({
           dueDate: { $gte: start, $lte: end },
-          $expr: { $lt: ["$paidAmount", "$totalAmount"] },
         })
         .toArray(),
     ]);
@@ -36,19 +35,24 @@ router.get("/events", async (req, res) => {
         debtId: r.debtId?.toString() ?? null,
         type: r.type,
       })),
-      ...debts.map((d) => ({
-        id: d._id.toString(),
-        source: "debt",
-        title: d.name,
-        amount: d.totalAmount - d.paidAmount,
-        currency: d.currency || "ves",
-        date: d.dueDate,
-        debtId: d._id.toString(),
-        direction: d.direction || "payable",
-        installmentNumber: d.installmentNumber ?? null,
-        installmentTotal: d.installmentTotal ?? null,
-        type: "debt",
-      })),
+      ...debts.map((d) => {
+        const isSettled = d.paidAmount >= d.totalAmount;
+        return {
+          id: d._id.toString(),
+          source: "debt",
+          title: d.name,
+          amount: d.totalAmount - d.paidAmount,
+          totalAmount: d.totalAmount,
+          currency: d.currency || "ves",
+          date: d.dueDate,
+          debtId: d._id.toString(),
+          direction: d.direction || "payable",
+          installmentNumber: d.installmentNumber ?? null,
+          installmentTotal: d.installmentTotal ?? null,
+          isSettled,
+          type: "debt",
+        };
+      }),
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     res.json(events);

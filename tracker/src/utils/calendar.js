@@ -1,8 +1,13 @@
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const WEEKDAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+const MONTHS_SHORT = [
+  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 ]
 
 export function getMonthDays(year, month) {
@@ -48,4 +53,4 @@ export function groupEventsByDay(events, year, month) {
   return groupItemsByDay(events, year, month)
 }
 
-export { WEEKDAYS, MONTHS }
+export { WEEKDAYS, WEEKDAYS_SHORT, MONTHS, MONTHS_SHORT }

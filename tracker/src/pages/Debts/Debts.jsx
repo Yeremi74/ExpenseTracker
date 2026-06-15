@@ -4,8 +4,10 @@ import {
   createDebtPayment,
   deleteDebt,
   deleteDebtPayment,
+  getCategories,
   getDebtPayments,
   getDebts,
+  settleDebt,
   updateDebt,
 } from '../../api/api.js'
 import formStyles from '../../components/forms/Form.module.css'
@@ -26,12 +28,20 @@ const DEBT_DIRECTIONS = {
     paymentsLabel: 'Pagos',
     paymentAmountLabel: 'Monto del pago',
     paymentSubmitLabel: 'Registrar pago',
+    settleLabel: 'Marcar como pagada',
+    settledLabel: 'Pagada',
+    settleTitle: 'Registrar pago de deuda',
+    settleDescription: 'Se creará un gasto por el monto pendiente',
   },
   receivable: {
     label: 'Me deben',
     paymentsLabel: 'Cobros',
     paymentAmountLabel: 'Monto cobrado',
     paymentSubmitLabel: 'Registrar cobro',
+    settleLabel: 'Marcar como cobrada',
+    settledLabel: 'Cobrada',
+    settleTitle: 'Registrar cobro de deuda',
+    settleDescription: 'Se creará un ingreso por el monto pendiente',
   },
 }
 
@@ -54,6 +64,15 @@ const emptyPaymentForm = {
   note: '',
 }
 
+const emptySettleForm = {
+  date: todayInputDate(),
+  categoryId: '',
+}
+
+function isDebtSettled(debt) {
+  return debt.paidAmount >= debt.totalAmount
+}
+
 function getDebtDirection(debt) {
   return DEBT_DIRECTIONS[debt.direction] ? debt.direction : 'payable'
 }
@@ -66,6 +85,9 @@ export default function DebtsPage() {
   const [expandedId, setExpandedId] = useState(null)
   const [payments, setPayments] = useState([])
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm)
+  const [settlingDebt, setSettlingDebt] = useState(null)
+  const [settleForm, setSettleForm] = useState(emptySettleForm)
+  const [settleCategories, setSettleCategories] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -215,6 +237,52 @@ export default function DebtsPage() {
     }
   }
 
+  async function openSettle(debt) {
+    const directionKey = getDebtDirection(debt)
+    const categoryType = directionKey === 'receivable' ? 'income' : 'expense'
+    setError(null)
+    setSettleForm(emptySettleForm)
+    setSettlingDebt(debt)
+    try {
+      const categories = await getCategories(categoryType)
+      setSettleCategories(categories)
+    } catch (err) {
+      setError(err.message)
+      setSettlingDebt(null)
+    }
+  }
+
+  function closeSettle() {
+    setSettlingDebt(null)
+    setSettleForm(emptySettleForm)
+    setSettleCategories([])
+    setError(null)
+  }
+
+  async function handleSettleSubmit(e) {
+    e.preventDefault()
+    if (!settlingDebt) return
+    setLoading(true)
+    setError(null)
+    try {
+      await settleDebt(settlingDebt.id, {
+        date: settleForm.date,
+        categoryId: settleForm.categoryId,
+      })
+      closeSettle()
+      load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const settlingDirection = settlingDebt ? DEBT_DIRECTIONS[getDebtDirection(settlingDebt)] : null
+  const settlingRemaining = settlingDebt
+    ? settlingDebt.totalAmount - settlingDebt.paidAmount
+    : 0
+
   return (
     <div>
       <PageHeader
@@ -223,7 +291,65 @@ export default function DebtsPage() {
         action={!showForm && <Button onClick={openCreate}>Nueva deuda</Button>}
       />
 
-      {error && !showForm && !expandedId && <p className={formStyles.error}>{error}</p>}
+      {error && !showForm && !expandedId && !settlingDebt && (
+        <p className={formStyles.error}>{error}</p>
+      )}
+
+      {settlingDebt && settlingDirection && (
+        <FormSheet open={!!settlingDebt} onClose={closeSettle} title={settlingDirection.settleTitle}>
+          <p className={styles.settleHint}>{settlingDirection.settleDescription}</p>
+          <form className={formStyles.form} onSubmit={handleSettleSubmit}>
+            <div className={formStyles.field}>
+              <label className={formStyles.label}>Deuda</label>
+              <input value={settlingDebt.name} readOnly />
+            </div>
+            <div className={formStyles.field}>
+              <label className={formStyles.label}>Monto pendiente</label>
+              <input
+                value={formatAmount(settlingRemaining, settlingDebt.currency)}
+                readOnly
+              />
+            </div>
+            <div className={formStyles.row}>
+              <div className={formStyles.field}>
+                <label className={formStyles.label}>Fecha</label>
+                <input
+                  type="date"
+                  value={settleForm.date}
+                  onChange={(e) => setSettleForm({ ...settleForm, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className={formStyles.field}>
+                <label className={formStyles.label}>Categoría</label>
+                <select
+                  value={settleForm.categoryId}
+                  onChange={(e) =>
+                    setSettleForm({ ...settleForm, categoryId: e.target.value })
+                  }
+                  required
+                >
+                  <option value="">Seleccionar...</option>
+                  {settleCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {error && <p className={formStyles.error}>{error}</p>}
+            <div className={formStyles.actions}>
+              <Button type="button" variant="ghost" onClick={closeSettle}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading || settleCategories.length === 0}>
+                {settlingDirection.settleLabel}
+              </Button>
+            </div>
+          </form>
+        </FormSheet>
+      )}
 
       {showForm && (
         <FormSheet
@@ -375,9 +501,13 @@ export default function DebtsPage() {
               const directionKey = getDebtDirection(debt)
               const direction = DEBT_DIRECTIONS[directionKey]
               const isReceivable = directionKey === 'receivable'
+              const settled = isDebtSettled(debt)
 
               return (
-                <div key={debt.id} className={styles.debtItem}>
+                <div
+                  key={debt.id}
+                  className={`${styles.debtItem} ${settled ? styles.debtItemSettled : ''}`}
+                >
                   <div className={listStyles.item}>
                     <div className={listStyles.info}>
                       <span className={listStyles.name}>
@@ -389,6 +519,9 @@ export default function DebtsPage() {
                         >
                           {direction.label}
                         </span>
+                        {settled && (
+                          <span className={styles.settledBadge}>{direction.settledLabel}</span>
+                        )}
                       </span>
                       <span className={listStyles.meta}>
                         {formatAmount(debt.paidAmount, debt.currency)} de {formatAmount(debt.totalAmount, debt.currency)}
@@ -412,6 +545,15 @@ export default function DebtsPage() {
                       {formatAmount(remaining, debt.currency)}
                     </span>
                     <div className={listStyles.actions}>
+                      {!settled && (
+                        <Button
+                          variant="ghost"
+                          className={styles.settleBtn}
+                          onClick={() => openSettle(debt)}
+                        >
+                          {direction.settleLabel}
+                        </Button>
+                      )}
                       <IconButton
                         icon={isExpanded ? 'chevronUp' : 'receipt'}
                         label={isExpanded ? 'Cerrar' : direction.paymentsLabel}
