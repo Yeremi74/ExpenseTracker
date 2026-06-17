@@ -1,24 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getExchangeRates } from '../../api/api.js'
+import { getExchangeRatesForDate } from '../../api/api.js'
 import { convertToVes } from '../../utils/currency.js'
-import { formatAmount, formatDateTime, formatRate } from '../../utils/format.js'
+import { formatAmount, formatDate, formatRate, todayInputDate } from '../../utils/format.js'
 import styles from './FormExchangeRates.module.css'
 
-export default function FormExchangeRates({ amount, currency }) {
+export default function FormExchangeRates({ amount, currency, date, onRatesChange }) {
   const [rates, setRates] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  const rateDate = date || todayInputDate()
 
   useEffect(() => {
     let active = true
 
     setLoading(true)
-    getExchangeRates()
+    setError(null)
+    onRatesChange?.(null)
+
+    getExchangeRatesForDate(rateDate)
       .then((data) => {
-        if (active) setRates(data)
+        if (!active) return
+        setRates(data)
+        onRatesChange?.(data)
       })
-      .catch(() => {
-        if (active) setRates(null)
+      .catch((err) => {
+        if (!active) return
+        setRates(null)
+        onRatesChange?.(null)
+        setError(err.message)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -27,7 +38,7 @@ export default function FormExchangeRates({ amount, currency }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [rateDate, onRatesChange])
 
   const usdBcv = formatRate(rates?.usdBcv)
   const usdt = formatRate(rates?.usdt)
@@ -46,13 +57,18 @@ export default function FormExchangeRates({ amount, currency }) {
   if (!hasRates) {
     return (
       <p className={`${styles.panel} ${styles.empty}`}>
-        Sin tasas configuradas.{' '}
+        {error || 'Sin tasas para esta fecha.'}{' '}
         <Link to="/rates" className={styles.link}>
           Configurar tasas
         </Link>
       </p>
     )
   }
+
+  const isHistorical = rates?.source === 'cotizave_history' || rates?.source === 'saved'
+  const metaLabel = isHistorical
+    ? `Tasas del ${formatDate(rateDate)}`
+    : `Tasas de hoy · ${formatDate(rateDate)}`
 
   return (
     <div className={styles.panel}>
@@ -69,9 +85,8 @@ export default function FormExchangeRates({ amount, currency }) {
       {showConversion && (
         <p className={styles.conversion}>≈ {formatAmount(vesEquivalent, 'ves')}</p>
       )}
-      {rates?.updatedAt && (
-        <p className={styles.meta}>Actualizado {formatDateTime(rates.updatedAt)}</p>
-      )}
+      <p className={styles.meta}>{metaLabel}</p>
+      {rates?.warning && <p className={styles.meta}>{rates.warning}</p>}
     </div>
   )
 }

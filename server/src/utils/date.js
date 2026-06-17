@@ -41,10 +41,27 @@ function addDaysUTC(value, days) {
   return new Date(Date.UTC(y, m - 1, d + days));
 }
 
+function toDateString(value) {
+  const { y, m, d } = parseDateParts(value);
+  const month = String(m).padStart(2, "0");
+  const day = String(d).padStart(2, "0");
+  return `${y}-${month}-${day}`;
+}
+
+function todayDateString() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 module.exports = {
   parseDateInput,
   parseDateStart,
   parseDateEnd,
   utcMonthRange,
   addDaysUTC,
+  toDateString,
+  todayDateString,
 };

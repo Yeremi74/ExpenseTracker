@@ -27,6 +27,41 @@ function convertToVes(amount, currency, rates) {
   return value;
 }
 
+function convertItemToVes(amount, currency, rates, exchangeRate) {
+  const value = Number(amount) || 0;
+  const normalized = currency || "ves";
+
+  if (normalized === "ves") return value;
+  if (exchangeRate != null && Number(exchangeRate) > 0) {
+    return value * Number(exchangeRate);
+  }
+  return convertToVes(amount, currency, rates);
+}
+
+async function resolveExchangeRate(db, userId, currency, date, providedRate) {
+  if (currency === "ves") return null;
+
+  if (providedRate != null && Number(providedRate) > 0) {
+    return Number(providedRate);
+  }
+
+  const { toDateString } = require("./date");
+  const { fetchRatesForDate } = require("../services/cotizave");
+  const dateStr = toDateString(date);
+
+  try {
+    const rates = await fetchRatesForDate(dateStr);
+    if (currency === "usd_bcv") return rates.usdBcv;
+    if (currency === "usdt") return rates.usdt;
+  } catch {
+    const fallback = await getExchangeRates(db, userId);
+    if (currency === "usd_bcv") return fallback.usdBcv;
+    if (currency === "usdt") return fallback.usdt;
+  }
+
+  return null;
+}
+
 function sumConverted(items, amountKey, currencyKey, rates) {
   return items.reduce(
     (sum, item) =>
@@ -40,5 +75,7 @@ module.exports = {
   parseCurrency,
   getExchangeRates,
   convertToVes,
+  convertItemToVes,
+  resolveExchangeRate,
   sumConverted,
 };

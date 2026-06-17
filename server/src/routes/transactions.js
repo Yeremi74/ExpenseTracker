@@ -1,7 +1,7 @@
 const express = require("express");
 const { getDb } = require("../config/database");
 const { toObjectId, parseFilters, serializeDoc } = require("../utils/mongo");
-const { parseCurrency } = require("../utils/currency");
+const { parseCurrency, resolveExchangeRate } = require("../utils/currency");
 const { parseDateInput, parseDateStart, parseDateEnd } = require("../utils/date");
 const { withUser } = require("../utils/userScope");
 
@@ -48,7 +48,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { type, amount, categoryId, title, description, date, currency } = req.body;
+    const { type, amount, categoryId, title, description, date, currency, exchangeRate } = req.body;
 
     if (!["income", "expense"].includes(type)) {
       return res.status(400).json({ error: "type must be income or expense" });
@@ -87,6 +87,20 @@ router.post("/", async (req, res) => {
       createdAt: new Date(),
     };
 
+    if (parsedCurrency !== "ves") {
+      const rate = await resolveExchangeRate(
+        getDb(),
+        req.userId,
+        parsedCurrency,
+        doc.date,
+        exchangeRate
+      );
+      if (!rate || rate <= 0) {
+        return res.status(400).json({ error: "exchange rate unavailable for this date" });
+      }
+      doc.exchangeRate = rate;
+    }
+
     const result = await getDb().collection("transactions").insertOne(doc);
     res.status(201).json(
       serializeDoc({
@@ -110,8 +124,9 @@ router.put("/:id", async (req, res) => {
       .findOne(withUser(req.userId, { _id: id }));
     if (!existing) return res.status(404).json({ error: "not found" });
 
-    const { type, amount, categoryId, title, description, date, currency } = req.body;
+    const { type, amount, categoryId, title, description, date, currency, exchangeRate } = req.body;
     const update = {};
+    const unset = {};
 
     const nextType = type ?? existing.type;
     if (type !== undefined && !["income", "expense"].includes(type)) {
@@ -145,9 +160,49 @@ router.put("/:id", async (req, res) => {
       }
     }
 
+    const nextCurrency = update.currency ?? existing.currency ?? "ves";
+    const nextDate = update.date ?? existing.date;
+
+    if (nextCurrency === "ves") {
+      unset.exchangeRate = "";
+    } else if (
+      currency !== undefined ||
+      date !== undefined ||
+      exchangeRate !== undefined
+    ) {
+      const rate = await resolveExchangeRate(
+        getDb(),
+        req.userId,
+        nextCurrency,
+        nextDate,
+        exchangeRate
+      );
+      if (!rate || rate <= 0) {
+        return res.status(400).json({ error: "exchange rate unavailable for this date" });
+      }
+      update.exchangeRate = rate;
+    }
+
+    const mongoUpdate = {};
+    if (Object.keys(update).length > 0) {
+      mongoUpdate.$set = update;
+    }
+    if (Object.keys(unset).length > 0) {
+      mongoUpdate.$unset = unset;
+    }
+
+    if (Object.keys(mongoUpdate).length === 0) {
+      return res.json(
+        serializeDoc({
+          ...existing,
+          categoryId: existing.categoryId?.toString(),
+        })
+      );
+    }
+
     const result = await getDb()
       .collection("transactions")
-      .findOneAndUpdate(withUser(req.userId, { _id: id }), { $set: update }, { returnDocument: "after" });
+      .findOneAndUpdate(withUser(req.userId, { _id: id }), mongoUpdate, { returnDocument: "after" });
 
     res.json(
       serializeDoc({

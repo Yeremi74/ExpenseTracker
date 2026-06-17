@@ -432,7 +432,15 @@ export default function DebtsPage() {
                 onChange={(currency) => setForm({ ...form, currency })}
               />
             </div>
-            <FormExchangeRates amount={form.totalAmount} currency={form.currency} />
+            <FormExchangeRates
+              amount={form.totalAmount}
+              currency={form.currency}
+              date={
+                form.scheduleType === 'installments' && !editingId
+                  ? form.firstDueDate
+                  : form.dueDate
+              }
+            />
             {!editingId && (
               <div className={formStyles.field}>
                 <label className={formStyles.label}>Registro</label>

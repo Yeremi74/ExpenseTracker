@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   createTransaction,
   deleteTransaction,
@@ -56,6 +56,7 @@ export default function TransactionPage({ type }) {
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [form, setForm] = useState(emptyForm(type))
+  const [exchangeRates, setExchangeRates] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState(null)
@@ -74,8 +75,13 @@ export default function TransactionPage({ type }) {
     load()
   }, [type])
 
+  const handleRatesChange = useCallback((rates) => {
+    setExchangeRates(rates)
+  }, [])
+
   function openCreate() {
     setForm(emptyForm(type))
+    setExchangeRates(null)
     setEditingId(null)
     setShowForm(true)
     setError(null)
@@ -91,6 +97,7 @@ export default function TransactionPage({ type }) {
       date: toInputDate(tx.date),
       type,
     })
+    setExchangeRates(null)
     setEditingId(tx.id)
     setShowForm(true)
     setError(null)
@@ -100,6 +107,7 @@ export default function TransactionPage({ type }) {
     setShowForm(false)
     setEditingId(null)
     setForm(emptyForm(type))
+    setExchangeRates(null)
     setError(null)
   }
 
@@ -116,6 +124,11 @@ export default function TransactionPage({ type }) {
         categoryId: form.categoryId,
         description: form.description,
         date: form.date,
+      }
+      if (form.currency === 'usd_bcv' && exchangeRates?.usdBcv) {
+        body.exchangeRate = exchangeRates.usdBcv
+      } else if (form.currency === 'usdt' && exchangeRates?.usdt) {
+        body.exchangeRate = exchangeRates.usdt
       }
       if (editingId) {
         await updateTransaction(editingId, body)
@@ -186,7 +199,12 @@ export default function TransactionPage({ type }) {
                 onChange={(currency) => setForm({ ...form, currency })}
               />
             </div>
-            <FormExchangeRates amount={form.amount} currency={form.currency} />
+            <FormExchangeRates
+              amount={form.amount}
+              currency={form.currency}
+              date={form.date}
+              onRatesChange={handleRatesChange}
+            />
             <div className={formStyles.row}>
               <div className={formStyles.field}>
                 <label className={formStyles.label}>Categoría</label>
@@ -231,7 +249,14 @@ export default function TransactionPage({ type }) {
               <Button type="button" variant="ghost" onClick={closeForm}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading || categories.length === 0}>
+              <Button
+                type="submit"
+                disabled={
+                  loading ||
+                  categories.length === 0 ||
+                  ((form.currency === 'usd_bcv' || form.currency === 'usdt') && !exchangeRates)
+                }
+              >
                 {editingId ? 'Guardar' : 'Registrar'}
               </Button>
             </div>

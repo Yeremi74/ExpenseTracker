@@ -1,6 +1,6 @@
 const express = require("express");
 const { getDb } = require("../config/database");
-const { getExchangeRates, convertToVes } = require("../utils/currency");
+const { getExchangeRates, convertToVes, convertItemToVes } = require("../utils/currency");
 const { utcMonthRange } = require("../utils/date");
 const { serializeDoc } = require("../utils/mongo");
 const { withUser } = require("../utils/userScope");
@@ -38,7 +38,8 @@ function sumTransactions(transactions, rates, type, dateRange) {
       return true;
     })
     .reduce(
-      (sum, tx) => sum + convertToVes(tx.amount, tx.currency || "ves", rates),
+      (sum, tx) =>
+        sum + convertItemToVes(tx.amount, tx.currency || "ves", rates, tx.exchangeRate),
       0
     );
 }
@@ -145,7 +146,7 @@ router.get("/alerts", async (req, res) => {
     const spentMap = {};
     for (const tx of transactions) {
       const key = tx.categoryId.toString();
-      const converted = convertToVes(tx.amount, tx.currency || "ves", rates);
+      const converted = convertItemToVes(tx.amount, tx.currency || "ves", rates, tx.exchangeRate);
       spentMap[key] = (spentMap[key] ?? 0) + converted;
     }
 
@@ -320,7 +321,7 @@ router.get("/expenses-by-category", async (req, res) => {
 
     for (const tx of transactions) {
       const key = tx.categoryId?.toString() ?? "uncategorized";
-      const converted = convertToVes(tx.amount, tx.currency || "ves", rates);
+      const converted = convertItemToVes(tx.amount, tx.currency || "ves", rates, tx.exchangeRate);
       amounts[key] = (amounts[key] ?? 0) + converted;
     }
 
@@ -369,7 +370,7 @@ router.get("/recent", async (req, res) => {
           ...serialized,
           categoryId,
           categoryName: categoryMap[categoryId] || "Sin categoría",
-          amountVes: convertToVes(doc.amount, doc.currency || "ves", rates),
+          amountVes: convertItemToVes(doc.amount, doc.currency || "ves", rates, doc.exchangeRate),
         };
       })
     );
