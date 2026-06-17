@@ -1,4 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
+import AuthFallback from './components/AuthFallback.jsx'
+import GuestRoute from './components/GuestRoute.jsx'
 import Layout from './components/Layout/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
@@ -18,10 +20,12 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route element={<Layout />}>
+        <Route element={<Layout />}>
+          <Route element={<GuestRoute />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+          </Route>
+          <Route element={<ProtectedRoute />}>
             <Route index element={<DashboardPage />} />
             <Route path="incomes" element={<IncomesPage />} />
             <Route path="expenses" element={<ExpensesPage />} />
@@ -31,6 +35,7 @@ export default function App() {
             <Route path="simulator" element={<SimulatorPage />} />
             <Route path="rates" element={<RatesPage />} />
           </Route>
+          <Route path="*" element={<AuthFallback />} />
         </Route>
       </Routes>
     </>

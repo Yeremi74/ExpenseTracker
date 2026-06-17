@@ -99,40 +99,69 @@ export default function Layout() {
             ×
           </button>
         </div>
-        <nav className={styles.nav}>
-          {navSections.map((section) => (
-            <div key={section.label || 'overview'} className={styles.navSection}>
-              {section.label && (
-                <span className={styles.navSectionLabel}>{section.label}</span>
-              )}
+        {user ? (
+          <nav className={styles.nav}>
+            {navSections.map((section) => (
+              <div key={section.label || 'overview'} className={styles.navSection}>
+                {section.label && (
+                  <span className={styles.navSectionLabel}>{section.label}</span>
+                )}
+                <div className={styles.navSectionLinks}>
+                  {section.items.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+        ) : (
+          <nav className={styles.nav}>
+            <div className={styles.navSection}>
               <div className={styles.navSectionLinks}>
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+                <NavLink
+                  to="/login"
+                  className={({ isActive }) =>
+                    isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                  }
+                  onClick={closeMenu}
+                >
+                  Iniciar sesión
+                </NavLink>
+                <NavLink
+                  to="/register"
+                  className={({ isActive }) =>
+                    isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                  }
+                  onClick={closeMenu}
+                >
+                  Registrarse
+                </NavLink>
               </div>
             </div>
-          ))}
-        </nav>
-        <div className={styles.userSection}>
-          <div className={styles.userInfo}>
-            <span className={styles.userName}>{displayName}</span>
-            {user?.name?.trim() && (
-              <span className={styles.userEmail}>{user.email}</span>
-            )}
+          </nav>
+        )}
+        {user && (
+          <div className={styles.userSection}>
+            <div className={styles.userInfo}>
+              <span className={styles.userName}>{displayName}</span>
+              {user.name?.trim() && (
+                <span className={styles.userEmail}>{user.email}</span>
+              )}
+            </div>
+            <button type="button" className={styles.sessionButton} onClick={handleLogout}>
+              Cerrar sesión
+            </button>
           </div>
-          <button type="button" className={styles.logoutButton} onClick={handleLogout}>
-            Cerrar sesión
-          </button>
-        </div>
+        )}
       </aside>
       <main className={styles.main}>
         <div className={styles.content}>
