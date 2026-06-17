@@ -18,6 +18,16 @@ async function connectMongo() {
   client = new MongoClient(mongoUri());
   await client.connect();
   connected = true;
+  await client
+    .db(process.env.MONGODB_DB || "tracker")
+    .collection("users")
+    .createIndex({ email: 1 }, { unique: true });
+
+  const db = client.db(process.env.MONGODB_DB || "tracker");
+  await db.collection("budgets").createIndex({ userId: 1, categoryId: 1 }, { unique: true });
+  await db.collection("exchange_rates").createIndex({ userId: 1 }, { unique: true });
+  await db.collection("transactions").createIndex({ userId: 1, date: -1 });
+  await db.collection("debt_payments").createIndex({ userId: 1, debtId: 1 });
   return client;
 }
 

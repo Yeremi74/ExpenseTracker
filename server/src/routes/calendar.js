@@ -1,6 +1,7 @@
 const express = require("express");
 const { getDb } = require("../config/database");
 const { utcMonthRange } = require("../utils/date");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
@@ -61,13 +62,14 @@ router.get("/events", async (req, res) => {
     const month = Number(req.query.month) || new Date().getMonth() + 1;
     const { start, end } = utcMonthRange(year, month);
     const db = getDb();
+    const userFilter = withUser(req.userId);
 
     const [reminders, debts] = await Promise.all([
       db
         .collection("reminders")
-        .find({ date: { $gte: start, $lte: end } })
+        .find({ ...userFilter, date: { $gte: start, $lte: end } })
         .toArray(),
-      db.collection("debts").find({}).toArray(),
+      db.collection("debts").find(userFilter).toArray(),
     ]);
 
     const events = [

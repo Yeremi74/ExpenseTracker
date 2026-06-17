@@ -8,8 +8,8 @@ function parseCurrency(value) {
   return currency;
 }
 
-async function getExchangeRates(db) {
-  const doc = await db.collection("exchange_rates").findOne({ _id: "rates" });
+async function getExchangeRates(db, userId) {
+  const doc = await db.collection("exchange_rates").findOne({ userId });
   return {
     usdBcv: doc?.usdBcv ?? 0,
     usdt: doc?.usdt ?? 0,

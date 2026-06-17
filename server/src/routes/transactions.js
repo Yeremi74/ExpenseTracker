@@ -3,13 +3,14 @@ const { getDb } = require("../config/database");
 const { toObjectId, parseFilters, serializeDoc } = require("../utils/mongo");
 const { parseCurrency } = require("../utils/currency");
 const { parseDateInput, parseDateStart, parseDateEnd } = require("../utils/date");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
     const filters = parseFilters(req.query);
-    const query = {};
+    const query = withUser(req.userId);
     if (filters.type) query.type = filters.type;
     if (filters.categoryId) {
       const categoryId = toObjectId(filters.categoryId);
@@ -59,7 +60,9 @@ router.post("/", async (req, res) => {
     const catId = toObjectId(categoryId);
     if (!catId) return res.status(400).json({ error: "invalid categoryId" });
 
-    const category = await getDb().collection("categories").findOne({ _id: catId });
+    const category = await getDb()
+      .collection("categories")
+      .findOne(withUser(req.userId, { _id: catId }));
     if (!category) return res.status(400).json({ error: "category not found" });
     if (category.type !== type) {
       return res.status(400).json({ error: "category type does not match transaction type" });
@@ -73,6 +76,7 @@ router.post("/", async (req, res) => {
     }
 
     const doc = {
+      userId: req.userId,
       type,
       amount: Number(amount),
       currency: parsedCurrency,
@@ -101,7 +105,9 @@ router.put("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const existing = await getDb().collection("transactions").findOne({ _id: id });
+    const existing = await getDb()
+      .collection("transactions")
+      .findOne(withUser(req.userId, { _id: id }));
     if (!existing) return res.status(404).json({ error: "not found" });
 
     const { type, amount, categoryId, title, description, date, currency } = req.body;
@@ -118,7 +124,9 @@ router.put("/:id", async (req, res) => {
     if (categoryId !== undefined) {
       const catId = toObjectId(categoryId);
       if (!catId) return res.status(400).json({ error: "invalid categoryId" });
-      const category = await getDb().collection("categories").findOne({ _id: catId });
+      const category = await getDb()
+        .collection("categories")
+        .findOne(withUser(req.userId, { _id: catId }));
       if (!category) return res.status(400).json({ error: "category not found" });
       if (category.type !== nextType) {
         return res.status(400).json({ error: "category type does not match transaction type" });
@@ -139,7 +147,7 @@ router.put("/:id", async (req, res) => {
 
     const result = await getDb()
       .collection("transactions")
-      .findOneAndUpdate({ _id: id }, { $set: update }, { returnDocument: "after" });
+      .findOneAndUpdate(withUser(req.userId, { _id: id }), { $set: update }, { returnDocument: "after" });
 
     res.json(
       serializeDoc({
@@ -157,7 +165,9 @@ router.delete("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const result = await getDb().collection("transactions").deleteOne({ _id: id });
+    const result = await getDb()
+      .collection("transactions")
+      .deleteOne(withUser(req.userId, { _id: id }));
     if (result.deletedCount === 0) return res.status(404).json({ error: "not found" });
     res.json({ ok: true });
   } catch (err) {

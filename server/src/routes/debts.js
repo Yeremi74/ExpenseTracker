@@ -5,6 +5,7 @@ const { toObjectId, serializeDoc } = require("../utils/mongo");
 const { parseCurrency } = require("../utils/currency");
 const { parseDateInput, addDaysUTC } = require("../utils/date");
 const debtPaymentsRouter = require("./debtPayments");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
@@ -84,15 +85,16 @@ function buildInstallmentsArray(amountPerInstallment, parsedInstallments) {
   return items;
 }
 
-async function createSettlementTransaction(db, debt, amount, categoryId, settlementDate, debtId) {
+async function createSettlementTransaction(db, userId, debt, amount, categoryId, settlementDate, debtId) {
   const type = debt.direction === "receivable" ? "income" : "expense";
-  const category = await db.collection("categories").findOne({ _id: categoryId });
+  const category = await db.collection("categories").findOne(withUser(userId, { _id: categoryId }));
   if (!category) throw new Error("category not found");
   if (category.type !== type) {
     throw new Error("category type does not match debt direction");
   }
 
   const transactionDoc = {
+    userId,
     type,
     amount,
     currency: debt.currency || "ves",
@@ -126,7 +128,7 @@ router.post("/:id/settle", async (req, res) => {
     if (!catId) return res.status(400).json({ error: "categoryId is required" });
 
     const db = getDb();
-    const debt = await db.collection("debts").findOne({ _id: id });
+    const debt = await db.collection("debts").findOne(withUser(req.userId, { _id: id }));
     if (!debt) return res.status(404).json({ error: "not found" });
 
     const settlementDate = date
@@ -151,6 +153,7 @@ router.post("/:id/settle", async (req, res) => {
 
       const { transactionId, transaction } = await createSettlementTransaction(
         db,
+        req.userId,
         {
           ...debt,
           name: `${debt.name} (Cuota ${installment.number}/${debt.installments.length})`,
@@ -172,7 +175,7 @@ router.post("/:id/settle", async (req, res) => {
       });
 
       const result = await db.collection("debts").findOneAndUpdate(
-        { _id: id },
+        withUser(req.userId, { _id: id }),
         {
           $set: {
             installments: updatedInstallments,
@@ -195,6 +198,7 @@ router.post("/:id/settle", async (req, res) => {
 
     const { transactionId, transaction } = await createSettlementTransaction(
       db,
+      req.userId,
       debt,
       remaining,
       catId,
@@ -203,7 +207,7 @@ router.post("/:id/settle", async (req, res) => {
     );
 
     const result = await db.collection("debts").findOneAndUpdate(
-      { _id: id },
+      withUser(req.userId, { _id: id }),
       {
         $set: {
           paidAmount: debt.totalAmount,
@@ -229,7 +233,7 @@ router.get("/", async (req, res) => {
   try {
     const docs = await getDb()
       .collection("debts")
-      .find({})
+      .find(withUser(req.userId))
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -282,6 +286,7 @@ router.post("/", async (req, res) => {
 
       const installmentItems = buildInstallmentsArray(amountPerUnit, parsedInstallments);
       const doc = {
+        userId: req.userId,
         name: name.trim(),
         totalAmount: amountPerUnit * parsedInstallments.count,
         paidAmount: 0,
@@ -302,6 +307,7 @@ router.post("/", async (req, res) => {
     }
 
     const doc = {
+      userId: req.userId,
       name: name.trim(),
       totalAmount: amountPerUnit,
       paidAmount: paid,
@@ -324,7 +330,9 @@ router.put("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const existing = await getDb().collection("debts").findOne({ _id: id });
+    const existing = await getDb()
+      .collection("debts")
+      .findOne(withUser(req.userId, { _id: id }));
     if (!existing) return res.status(404).json({ error: "not found" });
 
     const { name, totalAmount, paidAmount, description, dueDate, currency, direction } = req.body;
@@ -381,7 +389,7 @@ router.put("/:id", async (req, res) => {
 
     const result = await getDb()
       .collection("debts")
-      .findOneAndUpdate({ _id: id }, { $set: update }, { returnDocument: "after" });
+      .findOneAndUpdate(withUser(req.userId, { _id: id }), { $set: update }, { returnDocument: "after" });
 
     res.json(serializeDebt(result));
   } catch (err) {
@@ -394,7 +402,9 @@ router.delete("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const result = await getDb().collection("debts").deleteOne({ _id: id });
+    const result = await getDb()
+      .collection("debts")
+      .deleteOne(withUser(req.userId, { _id: id }));
     if (result.deletedCount === 0) return res.status(404).json({ error: "not found" });
     res.json({ ok: true });
   } catch (err) {

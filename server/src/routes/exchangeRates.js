@@ -1,11 +1,14 @@
 const express = require("express");
 const { getDb } = require("../config/database");
-const { fetchLiveRates } = require("../services/cotizave");
+const { parseCurrency } = require("../utils/currency");
+const { toObjectId, serializeDoc } = require("../utils/mongo");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
 router.get("/live", async (_req, res) => {
   try {
+    const { fetchLiveRates } = require("../services/cotizave");
     const rates = await fetchLiveRates();
     res.json(rates);
   } catch (err) {
@@ -13,9 +16,11 @@ router.get("/live", async (_req, res) => {
   }
 });
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const doc = await getDb().collection("exchange_rates").findOne({ _id: "rates" });
+    const doc = await getDb()
+      .collection("exchange_rates")
+      .findOne({ userId: req.userId });
     res.json({
       usdBcv: doc?.usdBcv ?? 0,
       usdt: doc?.usdt ?? 0,
@@ -38,7 +43,7 @@ router.put("/", async (req, res) => {
     }
 
     const doc = {
-      _id: "rates",
+      userId: req.userId,
       usdBcv: Number(usdBcv),
       usdt: Number(usdt),
       updatedAt: new Date(),
@@ -46,7 +51,7 @@ router.put("/", async (req, res) => {
 
     await getDb()
       .collection("exchange_rates")
-      .updateOne({ _id: "rates" }, { $set: doc }, { upsert: true });
+      .updateOne({ userId: req.userId }, { $set: doc }, { upsert: true });
 
     res.json({
       usdBcv: doc.usdBcv,

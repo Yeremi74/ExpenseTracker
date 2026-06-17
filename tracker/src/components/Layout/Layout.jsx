@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../providers/AuthProvider.jsx'
 import styles from './Layout.module.css'
 
 const navSections = [
@@ -33,6 +34,8 @@ const navSections = [
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
 
   useEffect(() => {
     setMenuOpen(false)
@@ -51,6 +54,13 @@ export default function Layout() {
   function closeMenu() {
     setMenuOpen(false)
   }
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
+  const displayName = user?.name?.trim() || user?.email
 
   return (
     <div className={styles.shell}>
@@ -112,6 +122,17 @@ export default function Layout() {
             </div>
           ))}
         </nav>
+        <div className={styles.userSection}>
+          <div className={styles.userInfo}>
+            <span className={styles.userName}>{displayName}</span>
+            {user?.name?.trim() && (
+              <span className={styles.userEmail}>{user.email}</span>
+            )}
+          </div>
+          <button type="button" className={styles.logoutButton} onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
       <main className={styles.main}>
         <div className={styles.content}>

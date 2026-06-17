@@ -18,6 +18,8 @@ const remindersRouter = require("./routes/reminders");
 const calendarRouter = require("./routes/calendar");
 const budgetsRouter = require("./routes/budgets");
 const exchangeRatesRouter = require("./routes/exchangeRates");
+const authRouter = require("./routes/auth");
+const authenticate = require("./middleware/authenticate");
 const ensureReady = require("./middleware/ensureReady");
 
 app.get("/api/health", (_req, res) => {
@@ -25,15 +27,21 @@ app.get("/api/health", (_req, res) => {
 });
 
 const apiRouter = express.Router();
-apiRouter.use(ensureReady);
-apiRouter.use("/categories", categoriesRouter);
-apiRouter.use("/transactions", transactionsRouter);
-apiRouter.use("/debts", debtsRouter);
-apiRouter.use("/dashboard", dashboardRouter);
-apiRouter.use("/reminders", remindersRouter);
-apiRouter.use("/calendar", calendarRouter);
-apiRouter.use("/budgets", budgetsRouter);
-apiRouter.use("/exchange-rates", exchangeRatesRouter);
+apiRouter.use("/auth", ensureReady, authRouter);
+
+const protectedRouter = express.Router();
+protectedRouter.use(ensureReady);
+protectedRouter.use(authenticate);
+protectedRouter.use("/categories", categoriesRouter);
+protectedRouter.use("/transactions", transactionsRouter);
+protectedRouter.use("/debts", debtsRouter);
+protectedRouter.use("/dashboard", dashboardRouter);
+protectedRouter.use("/reminders", remindersRouter);
+protectedRouter.use("/calendar", calendarRouter);
+protectedRouter.use("/budgets", budgetsRouter);
+protectedRouter.use("/exchange-rates", exchangeRatesRouter);
+
+apiRouter.use(protectedRouter);
 
 app.use("/api", apiRouter);
 

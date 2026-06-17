@@ -6,6 +6,24 @@ async function parseResponse(res) {
   return data
 }
 
+export function register(body) {
+  return apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }).then(parseResponse)
+}
+
+export function login(body) {
+  return apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }).then(parseResponse)
+}
+
+export function getMe() {
+  return apiFetch('/api/auth/me').then(parseResponse)
+}
+
 function buildFilterParams(filters = {}) {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(filters)) {

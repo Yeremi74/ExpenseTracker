@@ -1,13 +1,14 @@
 const express = require("express");
 const { getDb } = require("../config/database");
 const { toObjectId, parseFilters, serializeDoc } = require("../utils/mongo");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
     const filters = parseFilters(req.query);
-    const query = {};
+    const query = withUser(req.userId);
     if (filters.type) query.type = filters.type;
 
     const docs = await getDb()
@@ -33,6 +34,7 @@ router.post("/", async (req, res) => {
     }
 
     const doc = {
+      userId: req.userId,
       name: name.trim(),
       type,
       createdAt: new Date(),
@@ -66,7 +68,7 @@ router.put("/:id", async (req, res) => {
 
     const result = await getDb()
       .collection("categories")
-      .findOneAndUpdate({ _id: id }, { $set: update }, { returnDocument: "after" });
+      .findOneAndUpdate(withUser(req.userId, { _id: id }), { $set: update }, { returnDocument: "after" });
 
     if (!result) return res.status(404).json({ error: "not found" });
     res.json(serializeDoc(result));
@@ -80,7 +82,9 @@ router.delete("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const result = await getDb().collection("categories").deleteOne({ _id: id });
+    const result = await getDb()
+      .collection("categories")
+      .deleteOne(withUser(req.userId, { _id: id }));
     if (result.deletedCount === 0) return res.status(404).json({ error: "not found" });
     res.json({ ok: true });
   } catch (err) {

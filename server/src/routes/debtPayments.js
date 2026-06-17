@@ -2,6 +2,7 @@ const express = require("express");
 const { getDb } = require("../config/database");
 const { toObjectId, serializeDoc } = require("../utils/mongo");
 const { parseDateInput } = require("../utils/date");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router({ mergeParams: true });
 
@@ -10,9 +11,14 @@ router.get("/", async (req, res) => {
     const debtId = toObjectId(req.params.debtId);
     if (!debtId) return res.status(400).json({ error: "invalid debtId" });
 
+    const debt = await getDb()
+      .collection("debts")
+      .findOne(withUser(req.userId, { _id: debtId }));
+    if (!debt) return res.status(404).json({ error: "debt not found" });
+
     const docs = await getDb()
       .collection("debt_payments")
-      .find({ debtId })
+      .find(withUser(req.userId, { debtId }))
       .sort({ date: -1, createdAt: -1 })
       .toArray();
 
@@ -40,7 +46,7 @@ router.post("/", async (req, res) => {
     }
 
     const db = getDb();
-    const debt = await db.collection("debts").findOne({ _id: debtId });
+    const debt = await db.collection("debts").findOne(withUser(req.userId, { _id: debtId }));
     if (!debt) return res.status(404).json({ error: "debt not found" });
 
     const paymentAmount = Number(amount);
@@ -50,6 +56,7 @@ router.post("/", async (req, res) => {
     }
 
     const doc = {
+      userId: req.userId,
       debtId,
       amount: paymentAmount,
       date: date ? parseDateInput(date) : parseDateInput(new Date().toISOString().slice(0, 10)),
@@ -59,7 +66,7 @@ router.post("/", async (req, res) => {
 
     const result = await db.collection("debt_payments").insertOne(doc);
     await db.collection("debts").updateOne(
-      { _id: debtId },
+      withUser(req.userId, { _id: debtId }),
       { $inc: { paidAmount: paymentAmount } }
     );
 
@@ -82,15 +89,16 @@ router.delete("/:paymentId", async (req, res) => {
     if (!debtId || !paymentId) return res.status(400).json({ error: "invalid id" });
 
     const db = getDb();
-    const payment = await db.collection("debt_payments").findOne({
-      _id: paymentId,
-      debtId,
-    });
+    const payment = await db.collection("debt_payments").findOne(
+      withUser(req.userId, { _id: paymentId, debtId })
+    );
     if (!payment) return res.status(404).json({ error: "not found" });
 
-    await db.collection("debt_payments").deleteOne({ _id: paymentId });
+    await db.collection("debt_payments").deleteOne(
+      withUser(req.userId, { _id: paymentId })
+    );
     await db.collection("debts").updateOne(
-      { _id: debtId },
+      withUser(req.userId, { _id: debtId }),
       { $inc: { paidAmount: -payment.amount } }
     );
 

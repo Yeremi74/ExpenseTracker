@@ -2,12 +2,16 @@ const express = require("express");
 const { getDb } = require("../config/database");
 const { parseCurrency } = require("../utils/currency");
 const { toObjectId, serializeDoc } = require("../utils/mongo");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const docs = await getDb().collection("budgets").find({}).toArray();
+    const docs = await getDb()
+      .collection("budgets")
+      .find(withUser(req.userId))
+      .toArray();
     res.json(
       docs.map((doc) =>
         serializeDoc({
@@ -42,7 +46,9 @@ router.post("/", async (req, res) => {
     }
 
     if (catId) {
-      const category = await getDb().collection("categories").findOne({ _id: catId });
+      const category = await getDb()
+        .collection("categories")
+        .findOne(withUser(req.userId, { _id: catId }));
       if (!category) return res.status(400).json({ error: "category not found" });
       if (category.type !== "expense") {
         return res.status(400).json({ error: "budget category must be expense type" });
@@ -50,13 +56,13 @@ router.post("/", async (req, res) => {
     }
 
     const db = getDb();
-    const existing = await db.collection("budgets").findOne({
-      categoryId: catId ?? null,
-    });
+    const existing = await db.collection("budgets").findOne(
+      withUser(req.userId, { categoryId: catId ?? null })
+    );
 
     if (existing) {
       const result = await db.collection("budgets").findOneAndUpdate(
-        { _id: existing._id },
+        withUser(req.userId, { _id: existing._id }),
         { $set: { amount: Number(amount), currency } },
         { returnDocument: "after" }
       );
@@ -69,6 +75,7 @@ router.post("/", async (req, res) => {
     }
 
     const doc = {
+      userId: req.userId,
       categoryId: catId,
       amount: Number(amount),
       currency,
@@ -93,7 +100,9 @@ router.delete("/:id", async (req, res) => {
     const id = toObjectId(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid id" });
 
-    const result = await getDb().collection("budgets").deleteOne({ _id: id });
+    const result = await getDb()
+      .collection("budgets")
+      .deleteOne(withUser(req.userId, { _id: id }));
     if (result.deletedCount === 0) return res.status(404).json({ error: "not found" });
     res.json({ ok: true });
   } catch (err) {

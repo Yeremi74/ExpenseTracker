@@ -3,6 +3,7 @@ const { getDb } = require("../config/database");
 const { getExchangeRates, convertToVes } = require("../utils/currency");
 const { utcMonthRange } = require("../utils/date");
 const { serializeDoc } = require("../utils/mongo");
+const { withUser } = require("../utils/userScope");
 
 const router = express.Router();
 
@@ -42,14 +43,15 @@ function sumTransactions(transactions, rates, type, dateRange) {
     );
 }
 
-router.get("/summary", async (_req, res) => {
+router.get("/summary", async (req, res) => {
   try {
     const db = getDb();
-    const rates = await getExchangeRates(db);
+    const userFilter = withUser(req.userId);
+    const rates = await getExchangeRates(db, req.userId);
 
     const [transactions, debts] = await Promise.all([
-      db.collection("transactions").find({}).toArray(),
-      db.collection("debts").find({}).toArray(),
+      db.collection("transactions").find(userFilter).toArray(),
+      db.collection("debts").find(userFilter).toArray(),
     ]);
 
     const totalIncome = sumTransactions(transactions, rates, "income");
@@ -99,12 +101,15 @@ router.get("/summary", async (_req, res) => {
   }
 });
 
-router.get("/monthly", async (_req, res) => {
+router.get("/monthly", async (req, res) => {
   try {
     const db = getDb();
-    const rates = await getExchangeRates(db);
+    const rates = await getExchangeRates(db, req.userId);
     const range = currentMonthRange();
-    const transactions = await db.collection("transactions").find({}).toArray();
+    const transactions = await db
+      .collection("transactions")
+      .find(withUser(req.userId))
+      .toArray();
 
     const monthIncome = sumTransactions(transactions, rates, "income", range);
     const monthExpenses = sumTransactions(transactions, rates, "expense", range);
@@ -120,20 +125,21 @@ router.get("/monthly", async (_req, res) => {
   }
 });
 
-router.get("/alerts", async (_req, res) => {
+router.get("/alerts", async (req, res) => {
   try {
     const db = getDb();
-    const rates = await getExchangeRates(db);
+    const userFilter = withUser(req.userId);
+    const rates = await getExchangeRates(db, req.userId);
     const { start, end } = currentMonthRange();
 
     const [budgets, transactions, categories, debts] = await Promise.all([
-      db.collection("budgets").find({}).toArray(),
+      db.collection("budgets").find(userFilter).toArray(),
       db
         .collection("transactions")
-        .find({ type: "expense", date: { $gte: start, $lte: end } })
+        .find({ ...userFilter, type: "expense", date: { $gte: start, $lte: end } })
         .toArray(),
-      db.collection("categories").find({ type: "expense" }).toArray(),
-      db.collection("debts").find({}).toArray(),
+      db.collection("categories").find({ ...userFilter, type: "expense" }).toArray(),
+      db.collection("debts").find(userFilter).toArray(),
     ]);
 
     const spentMap = {};
@@ -259,8 +265,11 @@ router.get("/trends", async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months, 10) || 6, 1), 12);
     const db = getDb();
-    const rates = await getExchangeRates(db);
-    const transactions = await db.collection("transactions").find({}).toArray();
+    const rates = await getExchangeRates(db, req.userId);
+    const transactions = await db
+      .collection("transactions")
+      .find(withUser(req.userId))
+      .toArray();
     const now = new Date();
     const currentYear = now.getUTCFullYear();
 
@@ -289,18 +298,19 @@ router.get("/trends", async (req, res) => {
   }
 });
 
-router.get("/expenses-by-category", async (_req, res) => {
+router.get("/expenses-by-category", async (req, res) => {
   try {
     const db = getDb();
-    const rates = await getExchangeRates(db);
+    const userFilter = withUser(req.userId);
+    const rates = await getExchangeRates(db, req.userId);
     const { start, end } = currentMonthRange();
 
     const [transactions, categories] = await Promise.all([
       db
         .collection("transactions")
-        .find({ type: "expense", date: { $gte: start, $lte: end } })
+        .find({ ...userFilter, type: "expense", date: { $gte: start, $lte: end } })
         .toArray(),
-      db.collection("categories").find({ type: "expense" }).toArray(),
+      db.collection("categories").find({ ...userFilter, type: "expense" }).toArray(),
     ]);
 
     const categoryMap = Object.fromEntries(
@@ -334,16 +344,17 @@ router.get("/recent", async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 20);
     const db = getDb();
-    const rates = await getExchangeRates(db);
+    const userFilter = withUser(req.userId);
+    const rates = await getExchangeRates(db, req.userId);
 
     const [transactions, categories] = await Promise.all([
       db
         .collection("transactions")
-        .find({})
+        .find(userFilter)
         .sort({ date: -1, createdAt: -1 })
         .limit(limit)
         .toArray(),
-      db.collection("categories").find({}).toArray(),
+      db.collection("categories").find(userFilter).toArray(),
     ]);
 
     const categoryMap = Object.fromEntries(
