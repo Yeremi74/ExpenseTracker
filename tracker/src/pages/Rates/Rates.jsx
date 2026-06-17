@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button.jsx'
 import Card from '../../components/ui/Card.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { formatDateTime } from '../../utils/format.js'
+import BcvCalculator from './BcvCalculator.jsx'
 import styles from './Rates.module.css'
 
 const USDT_SOURCE_LABELS = {
@@ -77,7 +78,7 @@ export default function RatesPage() {
   }
 
   return (
-    <div>
+    <div className={styles.page}>
       <PageHeader
         title="Tasas de cambio"
         subtitle="Tasas de Cotizave, editables antes de guardar"
@@ -153,6 +154,10 @@ export default function RatesPage() {
             </Button>
           </div>
         </form>
+      </Card>
+
+      <Card>
+        <BcvCalculator rate={form.usdBcv} disabled={loading} />
       </Card>
     </div>
   )
