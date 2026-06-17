@@ -31,14 +31,36 @@ const navSections = [
   },
 ]
 
+function isNavItemActive(pathname, item) {
+  return item.end ? pathname === item.to : pathname.startsWith(item.to)
+}
+
 export default function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set())
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
 
   useEffect(() => {
     setMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    const activeSection = navSections.find(
+      (section) =>
+        section.label &&
+        section.items.some((item) => isNavItemActive(location.pathname, item))
+    )
+
+    if (!activeSection?.label) return
+
+    setCollapsedSections((prev) => {
+      if (!prev.has(activeSection.label)) return prev
+      const next = new Set(prev)
+      next.delete(activeSection.label)
+      return next
+    })
   }, [location.pathname])
 
   useEffect(() => {
@@ -58,6 +80,18 @@ export default function Layout() {
   function handleLogout() {
     logout()
     navigate('/login', { replace: true })
+  }
+
+  function toggleSection(label) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) {
+        next.delete(label)
+      } else {
+        next.add(label)
+      }
+      return next
+    })
   }
 
   const displayName = user?.name?.trim() || user?.email
@@ -101,27 +135,44 @@ export default function Layout() {
         </div>
         {user ? (
           <nav className={styles.nav}>
-            {navSections.map((section) => (
-              <div key={section.label || 'overview'} className={styles.navSection}>
-                {section.label && (
-                  <span className={styles.navSectionLabel}>{section.label}</span>
-                )}
-                <div className={styles.navSectionLinks}>
-                  {section.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      className={({ isActive }) =>
-                        isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
-                      }
+            {navSections.map((section) => {
+              const isCollapsed = section.label ? collapsedSections.has(section.label) : false
+
+              return (
+                <div key={section.label || 'overview'} className={styles.navSection}>
+                  {section.label && (
+                    <button
+                      type="button"
+                      className={styles.navSectionLabel}
+                      onClick={() => toggleSection(section.label)}
+                      aria-expanded={!isCollapsed}
                     >
-                      {item.label}
-                    </NavLink>
-                  ))}
+                      <span>{section.label}</span>
+                      <span
+                        className={`${styles.navSectionChevron} ${isCollapsed ? styles.navSectionChevronCollapsed : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  )}
+                  {!isCollapsed && (
+                    <div className={styles.navSectionLinks}>
+                      {section.items.map((item) => (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          end={item.end}
+                          className={({ isActive }) =>
+                            isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                          }
+                        >
+                          {item.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </nav>
         ) : (
           <nav className={styles.nav}>

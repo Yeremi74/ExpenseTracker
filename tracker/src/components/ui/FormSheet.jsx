@@ -1,25 +1,30 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import styles from './FormSheet.module.css'
 
-const MOBILE_QUERY = '(max-width: 768px)'
+const FIRST_INPUT_SELECTOR =
+  'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])'
 
 export default function FormSheet({ open, onClose, title, children }) {
+  const bodyRef = useRef(null)
+
   useEffect(() => {
     if (!open) return undefined
 
-    const mediaQuery = window.matchMedia(MOBILE_QUERY)
-
-    function syncScrollLock() {
-      document.body.style.overflow = mediaQuery.matches ? 'hidden' : ''
-    }
-
-    syncScrollLock()
-    mediaQuery.addEventListener('change', syncScrollLock)
+    document.body.style.overflow = 'hidden'
 
     return () => {
       document.body.style.overflow = ''
-      mediaQuery.removeEventListener('change', syncScrollLock)
     }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const frameId = requestAnimationFrame(() => {
+      bodyRef.current?.querySelector(FIRST_INPUT_SELECTOR)?.focus()
+    })
+
+    return () => cancelAnimationFrame(frameId)
   }, [open])
 
   if (!open) return null
@@ -41,7 +46,9 @@ export default function FormSheet({ open, onClose, title, children }) {
             ×
           </button>
         </div>
-        <div className={styles.body}>{children}</div>
+        <div className={styles.body} ref={bodyRef}>
+          {children}
+        </div>
       </div>
     </>
   )

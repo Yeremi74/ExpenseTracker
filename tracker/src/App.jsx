@@ -20,11 +20,11 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
+        <Route element={<GuestRoute />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
         <Route element={<Layout />}>
-          <Route element={<GuestRoute />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-          </Route>
           <Route element={<ProtectedRoute />}>
             <Route index element={<DashboardPage />} />
             <Route path="incomes" element={<IncomesPage />} />
