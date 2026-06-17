@@ -199,6 +199,10 @@ export function getExchangeRatesForDate(date) {
   return apiFetch(`/api/exchange-rates/for-date?date=${encodeURIComponent(date)}`).then(parseResponse)
 }
 
+export function snapshotExchangeRates() {
+  return apiFetch('/api/exchange-rates/snapshot', { method: 'POST' }).then(parseResponse)
+}
+
 export function fetchLiveRates() {
   return apiFetch('/api/exchange-rates/live').then(parseResponse)
 }

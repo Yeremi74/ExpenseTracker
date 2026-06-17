@@ -1,10 +1,18 @@
 const express = require("express");
 const { getDb } = require("../config/database");
-const { parseCurrency } = require("../utils/currency");
-const { toObjectId, serializeDoc } = require("../utils/mongo");
 const { withUser } = require("../utils/userScope");
+const { getRatesForDate, snapshotTodayRates } = require("../services/dailyExchangeRates");
 
 const router = express.Router();
+
+router.post("/snapshot", async (_req, res) => {
+  try {
+    const rates = await snapshotTodayRates();
+    res.json(rates);
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Failed to snapshot exchange rates" });
+  }
+});
 
 router.get("/live", async (_req, res) => {
   try {
@@ -23,29 +31,29 @@ router.get("/for-date", async (req, res) => {
       return res.status(400).json({ error: "invalid date" });
     }
 
-    const { fetchRatesForDate } = require("../services/cotizave");
-
-    try {
-      const rates = await fetchRatesForDate(date);
+    const rates = await getRatesForDate(date);
+    if (rates) {
       return res.json(rates);
-    } catch (err) {
-      const doc = await getDb()
-        .collection("exchange_rates")
-        .findOne({ userId: req.userId });
-
-      if (doc?.usdBcv > 0 && doc?.usdt > 0) {
-        return res.json({
-          usdBcv: doc.usdBcv,
-          usdt: doc.usdt,
-          updatedAt: doc.updatedAt,
-          rateDate: date,
-          source: "saved",
-          warning: err.message,
-        });
-      }
-
-      return res.status(502).json({ error: err.message || "Failed to fetch rates for date" });
     }
+
+    const doc = await getDb()
+      .collection("exchange_rates")
+      .findOne({ userId: req.userId });
+
+    if (doc?.usdBcv > 0 && doc?.usdt > 0) {
+      return res.json({
+        usdBcv: doc.usdBcv,
+        usdt: doc.usdt,
+        updatedAt: doc.updatedAt,
+        rateDate: date,
+        source: "saved",
+        warning: "No hay tasas guardadas para esta fecha. Usando tus tasas manuales.",
+      });
+    }
+
+    return res.status(404).json({
+      error: "No hay tasas guardadas para esta fecha. Entra a la app ese día o configura tasas en /rates.",
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

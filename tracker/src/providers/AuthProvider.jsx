@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { getMe, login as apiLogin, register as apiRegister } from '../api/api.js'
+import { getMe, login as apiLogin, register as apiRegister, snapshotExchangeRates } from '../api/api.js'
 import { setTokenGetter, setUnauthorizedHandler } from '../api/http.js'
+import { todayInputDate } from '../utils/format.js'
 
 const TOKEN_KEY = 'tracker_token'
 
@@ -61,6 +62,13 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (!cancelled) {
           setUser(data.user)
+          const today = todayInputDate()
+          const sessionKey = `rates_snapshot_${today}`
+          if (!sessionStorage.getItem(sessionKey)) {
+            snapshotExchangeRates()
+              .then(() => sessionStorage.setItem(sessionKey, '1'))
+              .catch(() => {})
+          }
         }
       })
       .catch(() => {

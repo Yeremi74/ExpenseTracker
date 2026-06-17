@@ -46,18 +46,18 @@ async function resolveExchangeRate(db, userId, currency, date, providedRate) {
   }
 
   const { toDateString } = require("./date");
-  const { fetchRatesForDate } = require("../services/cotizave");
+  const { getRatesForDate } = require("../services/dailyExchangeRates");
   const dateStr = toDateString(date);
 
-  try {
-    const rates = await fetchRatesForDate(dateStr);
+  const rates = await getRatesForDate(dateStr);
+  if (rates) {
     if (currency === "usd_bcv") return rates.usdBcv;
     if (currency === "usdt") return rates.usdt;
-  } catch {
-    const fallback = await getExchangeRates(db, userId);
-    if (currency === "usd_bcv") return fallback.usdBcv;
-    if (currency === "usdt") return fallback.usdt;
   }
+
+  const fallback = await getExchangeRates(db, userId);
+  if (currency === "usd_bcv") return fallback.usdBcv;
+  if (currency === "usdt") return fallback.usdt;
 
   return null;
 }

@@ -26,6 +26,7 @@ async function connectMongo() {
   const db = client.db(process.env.MONGODB_DB || "tracker");
   await db.collection("budgets").createIndex({ userId: 1, categoryId: 1 }, { unique: true });
   await db.collection("exchange_rates").createIndex({ userId: 1 }, { unique: true });
+  await db.collection("daily_exchange_rates").createIndex({ date: 1 }, { unique: true });
   await db.collection("transactions").createIndex({ userId: 1, date: -1 });
   await db.collection("debt_payments").createIndex({ userId: 1, debtId: 1 });
   return client;

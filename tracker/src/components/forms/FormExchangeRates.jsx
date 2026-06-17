@@ -65,8 +65,8 @@ export default function FormExchangeRates({ amount, currency, date, onRatesChang
     )
   }
 
-  const isHistorical = rates?.source === 'cotizave_history' || rates?.source === 'saved'
-  const metaLabel = isHistorical
+  const isStoredRate = rates?.source === 'daily_snapshot' || rates?.source === 'saved'
+  const metaLabel = isStoredRate
     ? `Tasas del ${formatDate(rateDate)}`
     : `Tasas de hoy · ${formatDate(rateDate)}`
 
