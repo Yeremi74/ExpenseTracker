@@ -28,3 +28,19 @@ export function convertFromVes(amount, currency, rates) {
   }
   return value
 }
+
+export function convertUsdtToUsdBcv(amount, rates) {
+  const value = Number(amount) || 0
+  const usdtRate = rates?.usdt || 0
+  const usdBcvRate = rates?.usdBcv || 0
+  if (usdtRate <= 0 || usdBcvRate <= 0) return 0
+  return value * (usdtRate / usdBcvRate)
+}
+
+export function convertUsdBcvToUsdt(amount, rates) {
+  const value = Number(amount) || 0
+  const usdtRate = rates?.usdt || 0
+  const usdBcvRate = rates?.usdBcv || 0
+  if (usdtRate <= 0 || usdBcvRate <= 0) return 0
+  return value * (usdBcvRate / usdtRate)
+}

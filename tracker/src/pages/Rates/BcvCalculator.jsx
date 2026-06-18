@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { convertFromVes, convertToVes } from '../../utils/currency.js'
-import { formatRate } from '../../utils/format.js'
 import formStyles from '../../components/forms/Form.module.css'
 import styles from './BcvCalculator.module.css'
 
@@ -51,13 +50,6 @@ export default function BcvCalculator({ rate, disabled }) {
 
   return (
     <div className={styles.calculator}>
-      <p className={styles.title}>Calculadora dólar BCV</p>
-      <p className={styles.hint}>
-        {canConvert
-          ? `Tasa: ${formatRate(numericRate)} Bs. por 1 USD`
-          : 'Ingresa o carga la tasa BCV para convertir'}
-      </p>
-
       <div className={formStyles.row}>
         <div className={formStyles.field}>
           <label className={formStyles.label}>Dólar BCV</label>
@@ -68,7 +60,7 @@ export default function BcvCalculator({ rate, disabled }) {
             value={usd}
             onChange={(e) => handleUsdChange(e.target.value)}
             disabled={disabled || !canConvert}
-            placeholder="Ej. 100"
+            placeholder="0"
           />
         </div>
         <div className={formStyles.field}>
@@ -80,7 +72,7 @@ export default function BcvCalculator({ rate, disabled }) {
             value={ves}
             onChange={(e) => handleVesChange(e.target.value)}
             disabled={disabled || !canConvert}
-            placeholder="Ej. 100"
+            placeholder="0"
           />
         </div>
       </div>

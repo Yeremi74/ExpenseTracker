@@ -4,22 +4,67 @@
   gap: 1rem;
 }
 
-.source {
-  font-size: 0.75rem;
+.blockLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--text-muted);
-  margin-bottom: 0.25rem;
 }
 
-.hint {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+.ratesCard,
+.calculatorsCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.ratesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .meta {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
   font-family: var(--mono);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab,
+.tabActive {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.tab:hover {
+  background: var(--surface-muted);
+}
+
+.tabActive {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.tabPanel {
+  display: block;
+}
+
+.tabPanelHidden {
+  display: none;
 }
