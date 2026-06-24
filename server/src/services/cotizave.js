@@ -42,7 +42,9 @@ function pickUsdtRate(rates) {
 
 function parseAuthenticatedRates(data) {
   const rates = data.rates ?? [];
-  const bcv = rates.find((rate) => rate.market === "bcv");
+  const bcv = rates.find(
+    (rate) => rate.market === "reference" || rate.type === "reference"
+  );
   const usdt = pickUsdtRate(rates);
 
   if (!bcv?.mid) {
@@ -93,12 +95,14 @@ async function fetchFromAuthenticatedApi(apiKey) {
       "X-API-Key": apiKey,
     },
   });
-
   const data = await response.json().catch(() => ({}));
+
+  console.log(JSON.stringify(data, null, 2));
   if (!response.ok) {
+    console.log('data',data)
     throw new Error(data.message || "Cotizave API request failed");
   }
-
+  console.log("Antes de parseAuthenticatedRates");
   return parseAuthenticatedRates(data);
 }
 
@@ -122,7 +126,9 @@ async function fetchLiveRates() {
   if (apiKey) {
     try {
       return await fetchFromAuthenticatedApi(apiKey);
-    } catch {
+    } catch (err) {
+      console.error('error en fetchLiveRates',err.stack);
+    
       return fetchFromPublicCalculator();
     }
   }
