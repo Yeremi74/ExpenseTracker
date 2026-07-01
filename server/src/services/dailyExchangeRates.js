@@ -43,17 +43,64 @@ async function saveDailyRates(liveRates, date = todayDateString()) {
   return toDailyResponse(doc);
 }
 
-async function snapshotTodayRates() {
-  const live = await fetchLiveRates();
-  return saveDailyRates(live, todayDateString());
+async function getSavedUserRates(userId) {
+  if (!userId) return null;
+
+  const doc = await getDb().collection("exchange_rates").findOne({ userId });
+  if (!doc?.usdBcv || !doc?.usdt) return null;
+
+  return {
+    usdBcv: doc.usdBcv,
+    usdt: doc.usdt,
+    fetchedAt: doc.updatedAt ?? null,
+    source: "saved",
+  };
 }
 
-async function getRatesForDate(date) {
+async function resolveLiveRates(userId) {
+  try {
+    return await fetchLiveRates();
+  } catch (liveErr) {
+    const daily = await getDailyRates(todayDateString());
+    if (daily) {
+      return {
+        ...daily,
+        warning:
+          "No se pudieron obtener tasas en vivo. Mostrando el último snapshot guardado.",
+      };
+    }
+
+    const saved = await getSavedUserRates(userId);
+    if (saved) {
+      return {
+        ...saved,
+        warning:
+          "No se pudieron obtener tasas en vivo. Usando tus tasas guardadas.",
+      };
+    }
+
+    throw liveErr;
+  }
+}
+
+async function snapshotTodayRates(userId) {
+  const existing = await getDailyRates(todayDateString());
+  if (existing) return existing;
+
+  const rates = await resolveLiveRates(userId);
+  if (rates.source === "daily_snapshot") {
+    return rates;
+  }
+
+  return saveDailyRates(rates, todayDateString());
+}
+
+async function getRatesForDate(date, userId) {
   const stored = await getDailyRates(date);
   if (stored) return stored;
 
   if (date === todayDateString()) {
-    return snapshotTodayRates();
+    return snapshotTodayRates(userId);
   }
 
   return null;
@@ -64,4 +111,5 @@ module.exports = {
   saveDailyRates,
   snapshotTodayRates,
   getRatesForDate,
+  resolveLiveRates,
 };

@@ -49,7 +49,7 @@ async function resolveExchangeRate(db, userId, currency, date, providedRate) {
   const { getRatesForDate } = require("../services/dailyExchangeRates");
   const dateStr = toDateString(date);
 
-  const rates = await getRatesForDate(dateStr);
+  const rates = await getRatesForDate(dateStr, userId);
   if (rates) {
     if (currency === "usd_bcv") return rates.usdBcv;
     if (currency === "usdt") return rates.usdt;
