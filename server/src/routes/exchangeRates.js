@@ -1,7 +1,8 @@
 const express = require("express");
 const { getDb } = require("../config/database");
 const { withUser } = require("../utils/userScope");
-const { getRatesForDate, snapshotTodayRates } = require("../services/dailyExchangeRates");
+const { todayDateString } = require("../utils/date");
+const { getRatesForDate, getDailyRates, snapshotTodayRates } = require("../services/dailyExchangeRates");
 
 const router = express.Router();
 
@@ -14,12 +15,34 @@ router.post("/snapshot", async (_req, res) => {
   }
 });
 
-router.get("/live", async (_req, res) => {
+router.get("/live", async (req, res) => {
   try {
     const { fetchLiveRates } = require("../services/cotizave");
     const rates = await fetchLiveRates();
-    res.json(rates);
+    return res.json(rates);
   } catch (err) {
+    const daily = await getDailyRates(todayDateString());
+    if (daily) {
+      return res.json({
+        ...daily,
+        warning: "No se pudieron obtener tasas en vivo. Mostrando el último snapshot guardado.",
+      });
+    }
+
+    const doc = await getDb()
+      .collection("exchange_rates")
+      .findOne({ userId: req.userId });
+
+    if (doc?.usdBcv > 0 && doc?.usdt > 0) {
+      return res.json({
+        usdBcv: doc.usdBcv,
+        usdt: doc.usdt,
+        fetchedAt: doc.updatedAt ?? null,
+        source: "saved",
+        warning: "No se pudieron obtener tasas en vivo. Usando tus tasas guardadas.",
+      });
+    }
+
     res.status(502).json({ error: err.message || "Failed to fetch live rates" });
   }
 });

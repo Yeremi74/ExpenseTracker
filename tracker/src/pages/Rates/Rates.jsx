@@ -33,6 +33,7 @@ function formatRateInput(value) {
 export default function RatesPage() {
   const [form, setForm] = useState({ usdBcv: '', usdt: '' })
   const [fetchedAt, setFetchedAt] = useState(null)
+  const [warning, setWarning] = useState(null)
   const [usdtSource, setUsdtSource] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -41,6 +42,7 @@ export default function RatesPage() {
   const loadRates = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setWarning(null)
     try {
       const rates = await fetchLiveRates()
       setForm({
@@ -48,6 +50,7 @@ export default function RatesPage() {
         usdt: formatRateInput(rates.usdt),
       })
       setFetchedAt(rates.fetchedAt ?? null)
+      setWarning(rates.warning ?? null)
       setUsdtSource(rates.usdtSource ?? null)
     } catch (err) {
       setError(err.message)
@@ -111,6 +114,7 @@ export default function RatesPage() {
           {fetchedAt && (
             <p className={styles.meta}>Cotizave · {formatDateTime(fetchedAt)}</p>
           )}
+          {warning && <p className={formStyles.error}>{warning}</p>}
         </div>
 
         {error && <p className={formStyles.error}>{error}</p>}

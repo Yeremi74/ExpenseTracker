@@ -97,12 +97,10 @@ async function fetchFromAuthenticatedApi(apiKey) {
   });
   const data = await response.json().catch(() => ({}));
 
-  console.log(JSON.stringify(data, null, 2));
   if (!response.ok) {
-    console.log('data',data)
     throw new Error(data.message || "Cotizave API request failed");
   }
-  console.log("Antes de parseAuthenticatedRates");
+
   return parseAuthenticatedRates(data);
 }
 
@@ -122,18 +120,30 @@ async function fetchFromPublicCalculator() {
 
 async function fetchLiveRates() {
   const apiKey = process.env.COTIZAVE_API_KEY?.trim();
+  let lastError = null;
 
   if (apiKey) {
     try {
       return await fetchFromAuthenticatedApi(apiKey);
     } catch (err) {
-      console.error('error en fetchLiveRates',err.stack);
-    
-      return fetchFromPublicCalculator();
+      lastError = err;
+      console.error("Cotizave authenticated API failed:", err.message);
     }
   }
 
-  return fetchFromPublicCalculator();
+  try {
+    return await fetchFromPublicCalculator();
+  } catch (err) {
+    lastError = err;
+  }
+
+  if (!apiKey) {
+    throw new Error(
+      "Cotizave requiere COTIZAVE_API_KEY en producción. Crea una key gratis en app.cotizave.com"
+    );
+  }
+
+  throw lastError || new Error("Failed to fetch live rates from Cotizave");
 }
 
 module.exports = { fetchLiveRates };
