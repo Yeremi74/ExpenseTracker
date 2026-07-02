@@ -1,25 +1,37 @@
-export function simulateSaving({ balance, monthlySaving, months }) {
-  const saving = Number(monthlySaving) || 0
-  const period = Number(months) || 1
-  const projected = balance + saving * period
-  return {
-    projectedBalance: projected,
-    totalSaved: saving * period,
-    monthlySaving: saving,
-    months: period,
+import { convertToVes } from './currency.js'
+
+export function simulateBalanceOperations({
+  startingAmount,
+  startingCurrency,
+  operations,
+  rates,
+}) {
+  let balanceVes = convertToVes(startingAmount, startingCurrency, rates)
+  const steps = []
+
+  if (Number(startingAmount) > 0) {
+    steps.push({
+      label: 'Balance inicial',
+      balanceVes,
+    })
   }
-}
 
-export function simulatePurchase({ balance, purchaseAmount, monthlyIncome, monthlyExpenses }) {
-  const amount = Number(purchaseAmount) || 0
-  const newBalance = balance - amount
-  const monthlyNet = (Number(monthlyIncome) || 0) - (Number(monthlyExpenses) || 0)
-  const monthsToRecover = monthlyNet > 0 ? amount / monthlyNet : null
+  for (const op of operations) {
+    const amount = Number(op.amount) || 0
+    if (amount <= 0) continue
+
+    const amountVes = convertToVes(amount, op.currency, rates)
+    balanceVes = op.type === 'add' ? balanceVes + amountVes : balanceVes - amountVes
+
+    steps.push({
+      label: op.type === 'add' ? 'Después de sumar' : 'Después de restar',
+      balanceVes,
+      operation: op,
+    })
+  }
 
   return {
-    newBalance,
-    canAfford: newBalance >= 0,
-    deficit: newBalance < 0 ? Math.abs(newBalance) : 0,
-    monthsToRecover: monthsToRecover != null ? Math.ceil(monthsToRecover) : null,
+    steps,
+    balanceVes,
   }
 }
