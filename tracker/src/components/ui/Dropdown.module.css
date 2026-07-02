@@ -1,0 +1,133 @@
+.root {
+  position: relative;
+  display: inline-flex;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  min-width: 6.5rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-h);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.compact {
+  min-width: 3.25rem;
+  justify-content: center;
+  padding: 0.5rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.open .trigger {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.triggerLabel {
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.toneDefault {
+  color: var(--text-h);
+}
+
+.tonePositive {
+  color: var(--positive);
+  background: color-mix(in srgb, var(--positive) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--positive) 25%, var(--border));
+}
+
+.toneNegative {
+  color: var(--negative);
+  background: color-mix(in srgb, var(--negative) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--negative) 25%, var(--border));
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  z-index: 20;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.375rem;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.menuRight {
+  left: auto;
+  right: 0;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.option:hover {
+  background: var(--surface-muted);
+}
+
+.optionSelected {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.optionLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.optionDescription {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.tonePositive .optionLabel,
+.tonePositive .triggerLabel {
+  color: var(--positive);
+}
+
+.toneNegative .optionLabel,
+.toneNegative .triggerLabel {
+  color: var(--negative);
+}

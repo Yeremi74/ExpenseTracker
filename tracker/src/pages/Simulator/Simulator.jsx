@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDashboardSummary } from '../../api/api.js'
-import formStyles from '../../components/forms/Form.module.css'
 import Card from '../../components/ui/Card.jsx'
-import CurrencySelect from '../../components/ui/CurrencySelect.jsx'
+import Dropdown from '../../components/ui/Dropdown.jsx'
 import MultiCurrencyStatCard from '../../components/ui/MultiCurrencyStatCard.jsx'
 import PageHeader from '../../components/ui/PageHeader.jsx'
 import { CURRENCIES, convertFromVes } from '../../utils/currency.js'
@@ -10,13 +9,37 @@ import { formatAmount, formatCurrency } from '../../utils/format.js'
 import { simulateBalanceOperations } from '../../utils/simulator.js'
 import styles from './Simulator.module.css'
 
+const CURRENCY_OPTIONS = CURRENCIES.map((currency) => ({
+  value: currency.value,
+  label: currency.label,
+  triggerLabel:
+    currency.value === 'ves' ? 'Bs.' : currency.value === 'usd_bcv' ? 'BCV' : 'USDT',
+}))
+
+const OPERATION_OPTIONS = [
+  {
+    value: 'add',
+    label: 'Sumar',
+    triggerLabel: '+',
+    description: 'Agregar al balance',
+    tone: 'positive',
+  },
+  {
+    value: 'subtract',
+    label: 'Restar',
+    triggerLabel: '−',
+    description: 'Quitar del balance',
+    tone: 'negative',
+  },
+]
+
 function createEmptyOperation(id) {
   return { id, type: 'add', amount: '', currency: 'ves' }
 }
 
 function BalanceValues({ amountVes, rates }) {
   return (
-    <div className={styles.stepValues}>
+    <div className={styles.inlineValues}>
       {CURRENCIES.map(({ value: currency }, index) => (
         <span
           key={currency}
@@ -51,6 +74,18 @@ export default function SimulatorPage() {
     operations,
     rates,
   })
+
+  const hasStarting = Number(startingAmount) > 0
+  const startingStep = hasStarting ? result.steps[0] : null
+
+  const stepByOperationId = {}
+  let stepIndex = hasStarting ? 1 : 0
+  for (const op of operations) {
+    if (Number(op.amount) > 0) {
+      stepByOperationId[op.id] = result.steps[stepIndex]
+      stepIndex += 1
+    }
+  }
 
   function updateOperation(id, patch) {
     setOperations((prev) => {
@@ -103,94 +138,92 @@ export default function SimulatorPage() {
       )}
 
       <Card>
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Tengo</h3>
-            {summary && (
-              <button type="button" className={styles.linkButton} onClick={useCurrentBalance}>
-                Usar mi saldo
-              </button>
-            )}
-          </div>
-          <div className={formStyles.row}>
-            <div className={formStyles.field}>
-              <label className={formStyles.label}>Monto</label>
+        <div className={styles.sectionHeader}>
+          <h3 className={styles.sectionTitle}>Calculadora</h3>
+          {summary && (
+            <button type="button" className={styles.linkButton} onClick={useCurrentBalance}>
+              Usar mi saldo
+            </button>
+          )}
+        </div>
+
+        <div className={styles.flow}>
+          <div className={styles.flowRow} data-level={0} style={{ '--level': 0 }}>
+            <div className={styles.rowContent}>
+              <span className={styles.rowBadge}>Tengo</span>
               <input
                 type="number"
                 min="0"
                 step="0.01"
+                className={styles.amountInput}
                 value={startingAmount}
                 onChange={(e) => setStartingAmount(e.target.value)}
                 placeholder="0.00"
               />
+              <Dropdown
+                value={startingCurrency}
+                onChange={setStartingCurrency}
+                options={CURRENCY_OPTIONS}
+                aria-label="Moneda inicial"
+              />
             </div>
-            <CurrencySelect
-              value={startingCurrency}
-              onChange={setStartingCurrency}
-            />
+            {startingStep && (
+              <div className={styles.rowResult}>
+                <BalanceValues amountVes={startingStep.balanceVes} rates={rates} />
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>Operaciones</h3>
-          <div className={styles.operations}>
-            {operations.map((op, index) => (
-              <div key={op.id} className={styles.operationRow}>
-                <span className={styles.operationIndex}>{index + 1}</span>
-                <div className={formStyles.field}>
-                  <label className={formStyles.label}>Tipo</label>
-                  <select
+          {operations.map((op, index) => {
+            const step = stepByOperationId[op.id]
+            const isComplete = Number(op.amount) > 0
+
+            return (
+              <div
+                key={op.id}
+                className={`${styles.flowRow} ${isComplete ? styles.flowRowComplete : ''}`}
+                data-level={index + 1}
+                style={{ '--level': index + 1 }}
+              >
+                <div className={styles.rowContent}>
+                  <Dropdown
                     value={op.type}
-                    onChange={(e) => updateOperation(op.id, { type: e.target.value })}
-                  >
-                    <option value="add">Sumar (+)</option>
-                    <option value="subtract">Restar (−)</option>
-                  </select>
-                </div>
-                <div className={formStyles.field}>
-                  <label className={formStyles.label}>Monto</label>
+                    onChange={(type) => updateOperation(op.id, { type })}
+                    options={OPERATION_OPTIONS}
+                    tone={op.type === 'add' ? 'positive' : 'negative'}
+                    compact
+                    aria-label="Tipo de operación"
+                  />
                   <input
                     type="number"
                     min="0"
                     step="0.01"
+                    className={styles.amountInput}
                     value={op.amount}
                     onChange={(e) => updateOperation(op.id, { amount: e.target.value })}
                     placeholder="0.00"
                   />
+                  <Dropdown
+                    value={op.currency}
+                    onChange={(currency) => updateOperation(op.id, { currency })}
+                    options={CURRENCY_OPTIONS}
+                    aria-label="Moneda de la operación"
+                  />
                 </div>
-                <CurrencySelect
-                  value={op.currency}
-                  onChange={(currency) => updateOperation(op.id, { currency })}
-                />
+                {step && (
+                  <div className={styles.rowResult}>
+                    <BalanceValues amountVes={step.balanceVes} rates={rates} />
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
 
         {!ratesReady && (
           <p className={styles.hint}>
             Configura tus tasas de cambio para convertir entre monedas correctamente.
           </p>
-        )}
-
-        {hasInput && result.steps.length > 0 && (
-          <div className={styles.results}>
-            <h3 className={styles.sectionTitle}>Balance parcial</h3>
-            {result.steps.map((step, index) => (
-              <div key={index} className={styles.step}>
-                <div className={styles.stepHeader}>
-                  <span className={styles.stepLabel}>{step.label}</span>
-                  {step.operation && (
-                    <span className={styles.stepOperation}>
-                      {step.operation.type === 'add' ? '+' : '−'}{' '}
-                      {formatAmount(step.operation.amount, step.operation.currency)}
-                    </span>
-                  )}
-                </div>
-                <BalanceValues amountVes={step.balanceVes} rates={rates} />
-              </div>
-            ))}
-          </div>
         )}
 
         {hasInput && (
